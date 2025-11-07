@@ -25,6 +25,7 @@ class SocketService {
     this.onOperationAdd = null;
     this.onDrawStream = null;
     this.onShapePreview = null;
+    this.onShapePreviewClear = null; // New callback
     this.onUsersLoad = null;
     this.onUserJoined = null;
     this.onUserLeft = null;
@@ -113,6 +114,17 @@ class SocketService {
         }
       } catch (error) {
         console.error('Error handling shape preview:', error);
+      }
+    });
+
+    // Shape preview clear (new)
+    this.socket.on('server:shape:preview_clear', (data) => {
+      try {
+        if (this.onShapePreviewClear && data) {
+          this.onShapePreviewClear(data);
+        }
+      } catch (error) {
+        console.error('Error handling shape preview clear:', error);
       }
     });
 

@@ -16,9 +16,6 @@ class App {
     this.currentColor = '#000000';
     this.sessionId = this.getOrCreateSessionId();
     
-    // Store custom colors per user (not in localStorage)
-    this.userCustomColors = new Map();
-    
     this.init();
   }
 
@@ -39,21 +36,31 @@ class App {
   }
 
   /**
-   * Get custom colors for current user
+   * Get custom colors for current user from localStorage
    */
   getUserColors() {
     if (!this.localUser) return [];
-    const key = `${this.localUser.name}_${this.localUser.color}`;
-    return this.userCustomColors.get(key) || [];
+    const key = `doodly_custom_colors_${this.localUser.name}_${this.localUser.color}`;
+    try {
+      const storedColors = localStorage.getItem(key);
+      return storedColors ? JSON.parse(storedColors) : [];
+    } catch (e) {
+      console.error('Error reading custom colors from localStorage', e);
+      return [];
+    }
   }
 
   /**
-   * Save custom colors for current user
+   * Save custom colors for current user to localStorage
    */
   saveUserColors(colors) {
     if (!this.localUser) return;
-    const key = `${this.localUser.name}_${this.localUser.color}`;
-    this.userCustomColors.set(key, colors);
+    const key = `doodly_custom_colors_${this.localUser.name}_${this.localUser.color}`;
+    try {
+      localStorage.setItem(key, JSON.stringify(colors));
+    } catch (e) {
+      console.error('Error saving custom colors to localStorage', e);
+    }
   }
 
   setupModalHandlers() {
@@ -147,6 +154,15 @@ class App {
           this.canvas.handleRemoteShapePreview(data);
         } catch (error) {
           console.error('Error handling shape preview:', error);
+        }
+      };
+
+      // New handler for clearing shape previews
+      this.socketService.onShapePreviewClear = (data) => {
+        try {
+          this.canvas.handleRemoteShapePreviewClear(data);
+        } catch (error) {
+          console.error('Error handling shape preview clear:', error);
         }
       };
       
@@ -454,13 +470,16 @@ class App {
 
   updateRoomsList(rooms) {
     const list = document.getElementById('other-rooms-list');
-    const otherRooms = rooms.filter(r => r !== this.currentRoom);
+    const otherRooms = rooms.filter(room => room.name !== this.currentRoom);
     
     if (otherRooms.length === 0) {
       list.innerHTML = '<p class="empty-state">No other rooms available</p>';
     } else {
       list.innerHTML = otherRooms.map(room => 
-        `<div class="room-item" data-room="${this.escapeHtml(room)}">${this.escapeHtml(room)}</div>`
+        `<div class="room-item" data-room="${this.escapeHtml(room.name)}">
+           <span>${this.escapeHtml(room.name)}</span>
+           <span class="room-user-count">${room.userCount}</span>
+         </div>`
       ).join('');
       
       list.querySelectorAll('.room-item').forEach(item => {

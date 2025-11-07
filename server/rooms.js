@@ -70,7 +70,7 @@ class RoomManager {
     socket.emit('server:history:load', history);
 
     // Send available rooms list
-    socket.emit('server:rooms:list', this.getAllRoomNames());
+    socket.emit('server:rooms:list', this.getRoomList());
 
     // Notify others of join
     socket.to(roomName).emit('user:joined', user);
@@ -97,18 +97,37 @@ class RoomManager {
         const currentRoom = this.rooms.get(roomName);
         if (currentRoom && currentRoom.users.size === 0) {
           this.rooms.delete(roomName);
+          // Also update room list for all clients
+          this.io.emit('server:rooms:list', this.getRoomList());
           console.log(`🧹 Room ${roomName} deleted (empty)`);
         }
       }, 30000); // 30 second grace period
+    } else {
+      // Broadcast updated room list with new user count
+      this.io.emit('server:rooms:list', this.getRoomList());
     }
 
     console.log(`❌ ${user.name} left room: ${roomName}`);
   }
 
-  getAllRoomNames() {
-    const activeRooms = Array.from(this.rooms.keys());
-    const allRooms = new DrawingState('temp').getAllRooms();
-    return [...new Set([...activeRooms, ...allRooms])];
+  /**
+   * Get list of all rooms (both active and saved) with user counts.
+   */
+  getRoomList() {
+    const allRoomNames = new DrawingState('temp').getAllRooms();
+    const roomMap = new Map();
+
+    // Add all saved rooms with 0 users
+    for (const roomName of allRoomNames) {
+      roomMap.set(roomName, { name: roomName, userCount: 0 });
+    }
+
+    // Add/update active rooms with current user count
+    for (const [roomName, roomData] of this.rooms.entries()) {
+      roomMap.set(roomName, { name: roomName, userCount: roomData.users.size });
+    }
+
+    return Array.from(roomMap.values());
   }
 
   setupSocketHandlers(socket, roomName, user) {
@@ -149,6 +168,11 @@ class RoomManager {
 
         // Broadcast to all clients (including sender for confirmation)
         this.io.to(roomName).emit('server:operation:add', operation);
+        
+        // If this was a shape, tell clients to clear the preview for this user
+        if (operation.type === 'shape') {
+          this.io.to(roomName).emit('server:shape:preview_clear', { userId: socket.id });
+        }
         
         // Update room timestamp
         room.lastOperationTime = Date.now();
@@ -289,7 +313,7 @@ class RoomManager {
     // Request room list
     socket.on('client:rooms:request', () => {
       try {
-        socket.emit('server:rooms:list', this.getAllRoomNames());
+        socket.emit('server:rooms:list', this.getRoomList());
       } catch (error) {
         console.error(`❌ Error fetching room list:`, error);
       }

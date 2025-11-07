@@ -210,10 +210,13 @@ class DrawingCanvas {
         // Add to pending operations (optimistic update)
         this.pendingOperations.set(finalOperation.id, finalOperation);
         
-        // Clear previews and commit to background
-        this.remotePreviews.clear();
+        // Clear local preview and commit to background
         this.commitOperationToBackground(finalOperation);
         this.composeLayers();
+
+        // Redraw any other remote previews that were cleared
+        this.drawRemotePreviewStrokes();
+        this.drawRemoteShapePreviews();
         
         // Send to server
         if (this.onOperationAdd) {
@@ -408,47 +411,94 @@ class DrawingCanvas {
     // Redraw with updated preview
     this.composeLayers();
     this.drawRemotePreviewStrokes();
+    this.drawRemoteShapePreviews();
   }
 
   drawRemotePreviewStrokes() {
     const ctx = this.ctx;
     
     for (let [id, preview] of this.remotePreviews) {
-      if (preview.points.length < 2) continue;
-      
-      ctx.strokeStyle = preview.tool === 'eraser' ? '#ffffff' : preview.color;
-      ctx.lineWidth = preview.width;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      
-      ctx.beginPath();
-      ctx.moveTo(preview.points[0].x, preview.points[0].y);
-      
-      for (let i = 1; i < preview.points.length; i++) {
-        ctx.lineTo(preview.points[i].x, preview.points[i].y);
+      if (preview.points && preview.points.length >= 2) {
+        ctx.strokeStyle = preview.tool === 'eraser' ? '#ffffff' : preview.color;
+        ctx.lineWidth = preview.width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        
+        ctx.beginPath();
+        ctx.moveTo(preview.points[0].x, preview.points[0].y);
+        
+        for (let i = 1; i < preview.points.length; i++) {
+          ctx.lineTo(preview.points[i].x, preview.points[i].y);
+        }
+        
+        ctx.stroke();
       }
-      
-      ctx.stroke();
     }
   }
 
+  /**
+   * Received a shape preview update from another user.
+   */
   handleRemoteShapePreview(data) {
     if (!data.userId) return;
+    // Store the preview data
     this.remotePreviews.set(data.userId, data);
-    this.drawRemoteShapePreviews();
+    
+    // Redraw the entire foreground to show the update
+    this.redrawForeground();
   }
 
+  /**
+   * Clear a remote shape preview when the user finishes drawing.
+   */
+  handleRemoteShapePreviewClear(data) {
+    if (data.userId) {
+      this.remotePreviews.delete(data.userId);
+      
+      // Redraw foreground to remove the cleared preview
+      this.redrawForeground();
+    }
+  }
+
+  /**
+   * Draw the local user's shape preview.
+   */
   drawLocalShapePreview(previewData) {
-    this.composeLayers();
+    // Redraw the entire foreground
+    this.redrawForeground();
+    // Draw the local shape on top
     this.drawShape(previewData, true, this.ctx);
-    this.drawRemoteShapePreviews();
   }
 
+  /**
+   * Redraws all remote shape previews.
+   */
   drawRemoteShapePreviews() {
     const ctx = this.ctx;
     for (let [userId, preview] of this.remotePreviews) {
       if (preview.shape) {
         this.drawShape(preview, true, ctx);
+      }
+    }
+  }
+
+  /**
+   * Clears the foreground and redraws all active previews.
+   * (Remote strokes, remote shapes, and local shape if active).
+   */
+  redrawForeground() {
+    // Clear by drawing background
+    this.composeLayers();
+    
+    // Draw all remote previews
+    this.drawRemotePreviewStrokes();
+    this.drawRemoteShapePreviews();
+    
+    // If local user is drawing a shape, draw their preview on top
+    if (this.currentTool === 'shape' && this.isDrawing) {
+      const localPreviewData = this.shapeTool.getPreviewData();
+      if (localPreviewData) {
+        this.drawShape(localPreviewData, true, this.ctx);
       }
     }
   }
@@ -506,6 +556,7 @@ class DrawingCanvas {
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.beginPath();
+        if (!operation.points || operation.points.length === 0) return;
         ctx.moveTo(operation.points[0].x, operation.points[0].y);
         
         for (let i = 1; i < operation.points.length; i++) {
@@ -548,12 +599,19 @@ class DrawingCanvas {
     // Remove from pending if exists
     if (operation.id) {
       this.pendingOperations.delete(operation.id);
-      this.remotePreviews.delete(operation.operationId);
+      // Check for both types of previews
+      this.remotePreviews.delete(operation.operationId); // For strokes
+      this.remotePreviews.delete(operation.userId); // For shapes
     }
     
     // Check if already exists (deduplicate)
     const exists = this.history.some(op => op.id === operation.id);
-    if (exists) return;
+    if (exists) {
+      // Still need to redraw, as a preview might be cleared
+      this.redrawBackground();
+      this.redrawForeground();
+      return;
+    }
     
     // Add to history in order by timestamp
     this.history.push(operation);
@@ -561,7 +619,8 @@ class DrawingCanvas {
     
     // Redraw background
     this.redrawBackground();
-    this.composeLayers();
+    // Redraw foreground (to clear any previews)
+    this.redrawForeground();
   }
 
   loadHistoryFromServer(history) {

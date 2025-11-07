@@ -325,10 +325,28 @@ body {
   cursor: pointer;
   transition: background 0.2s;
   font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .room-item:hover {
   background: #2a2a2a;
+}
+
+.room-user-count {
+  background: #333;
+  color: #aaa;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  transition: all 0.2s;
+}
+
+.room-item:hover .room-user-count {
+  background: #4a9eff;
+  color: #fff;
 }
 
 .empty-state {
