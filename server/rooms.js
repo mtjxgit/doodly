@@ -1,13 +1,22 @@
 const DrawingState = require('./drawing-state');
 
+/**
+ * RoomManager - Manages rooms and handles socket connections
+ * - Implements operation ordering by timestamp
+ * - Handles conflict resolution for global undo/redo
+ * - Manages user sessions and reconnections
+ */
 class RoomManager {
   constructor(io) {
     this.io = io;
     this.rooms = new Map();
+    
+    // Track user sessions for reconnection
+    this.userSessions = new Map(); // sessionId -> { roomName, user }
   }
 
   handleConnection(socket) {
-    const { roomName, username, color } = socket.handshake.query;
+    const { roomName, username, color, sessionId } = socket.handshake.query;
 
     if (!roomName || !username || !color) {
       socket.emit('error', { message: 'Missing connection parameters' });
@@ -18,8 +27,19 @@ class RoomManager {
     const user = {
       id: socket.id,
       name: username,
-      color: color
+      color: color,
+      sessionId: sessionId || socket.id
     };
+
+    // Check for reconnection
+    const existingSession = this.userSessions.get(user.sessionId);
+    if (existingSession && existingSession.roomName === roomName) {
+      console.log(`🔄 ${user.name} reconnected to room: ${roomName}`);
+      socket.emit('server:reconnected', { message: 'Reconnected successfully' });
+    }
+
+    // Store session
+    this.userSessions.set(user.sessionId, { roomName, user });
 
     this.joinRoom(socket, roomName, user);
     this.setupSocketHandlers(socket, roomName, user);
@@ -31,7 +51,9 @@ class RoomManager {
       this.rooms.set(roomName, {
         name: roomName,
         users: new Map(),
-        state: new DrawingState(roomName)
+        state: new DrawingState(roomName),
+        // Track last operation time for conflict resolution
+        lastOperationTime: Date.now()
       });
     }
 
@@ -44,7 +66,8 @@ class RoomManager {
     this.io.to(roomName).emit('users:load', userList);
 
     // Send drawing history to new user only
-    socket.emit('server:history:load', room.state.getHistory());
+    const history = room.state.getHistory();
+    socket.emit('server:history:load', history);
 
     // Send available rooms list
     socket.emit('server:rooms:list', this.getAllRoomNames());
@@ -52,7 +75,7 @@ class RoomManager {
     // Notify others of join
     socket.to(roomName).emit('user:joined', user);
 
-    console.log(`✅ ${user.name} joined room: ${roomName}`);
+    console.log(`✅ ${user.name} joined room: ${roomName} (${userList.length} users)`);
   }
 
   leaveRoom(socket, roomName, user) {
@@ -68,10 +91,15 @@ class RoomManager {
     const userList = Array.from(room.users.values());
     this.io.to(roomName).emit('users:load', userList);
 
-    // Clean up empty rooms
+    // Clean up empty rooms after delay (allow for reconnection)
     if (room.users.size === 0) {
-      this.rooms.delete(roomName);
-      console.log(`🧹 Room ${roomName} deleted (empty)`);
+      setTimeout(() => {
+        const currentRoom = this.rooms.get(roomName);
+        if (currentRoom && currentRoom.users.size === 0) {
+          this.rooms.delete(roomName);
+          console.log(`🧹 Room ${roomName} deleted (empty)`);
+        }
+      }, 30000); // 30 second grace period
     }
 
     console.log(`❌ ${user.name} left room: ${roomName}`);
@@ -86,88 +114,232 @@ class RoomManager {
   setupSocketHandlers(socket, roomName, user) {
     const room = this.rooms.get(roomName);
 
-    // Drawing operations
+    // Drawing operations with validation
     socket.on('client:operation:add', (operation) => {
-      // Fix: Handle updates (like text) vs new ops
-      if (operation.id) {
-        room.state.updateOperationById(operation);
-      } else {
-        // This should not happen for text, but good for strokes
-        operation.id = Date.now() + '_' + Math.random();
-        room.state.addOperation(operation);
+      try {
+        // Validate operation
+        if (!this.validateOperation(operation)) {
+          socket.emit('server:error', { message: 'Invalid operation data' });
+          return;
+        }
+
+        // Ensure operation has required fields
+        if (!operation.id) {
+          operation.id = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        }
+        
+        if (!operation.timestamp) {
+          operation.timestamp = Date.now();
+        }
+
+        // Add user info for tracking
+        operation.userId = socket.id;
+        operation.userName = user.name;
+
+        // Check for updates vs new operations
+        const existingOp = room.state.findOperationById(operation.id);
+        
+        if (existingOp) {
+          // Update existing operation
+          room.state.updateOperationById(operation);
+        } else {
+          // Add new operation with ordering
+          room.state.addOperation(operation);
+        }
+
+        // Broadcast to all clients (including sender for confirmation)
+        this.io.to(roomName).emit('server:operation:add', operation);
+        
+        // Update room timestamp
+        room.lastOperationTime = Date.now();
+
+      } catch (error) {
+        console.error(`❌ Error processing operation in ${roomName}:`, error);
+        socket.emit('server:error', { message: 'Failed to process operation' });
       }
-      // Broadcast as 'add' - client will handle update/add
-      this.io.to(roomName).emit('server:operation:add', operation);
     });
 
-    // Streaming draw updates (real-time)
+    // Streaming draw updates (real-time) with error handling
     socket.on('client:draw:stream', (data) => {
-      socket.to(roomName).emit('server:draw:stream', data);
+      try {
+        if (!data || !data.operationId) return;
+        
+        // Add metadata
+        data.userId = socket.id;
+        data.userName = user.name;
+        data.timestamp = Date.now();
+        
+        // Broadcast to others only
+        socket.to(roomName).emit('server:draw:stream', data);
+      } catch (error) {
+        console.error(`❌ Error processing draw stream:`, error);
+      }
     });
 
     // Shape preview (real-time)
     socket.on('client:shape:preview', (data) => {
-      // Fix: Add user data to preview
-      const previewData = {
-        ...data,
-        userId: socket.id,
-        userName: user.name,
-        userColor: user.color
-      };
-      socket.to(roomName).emit('server:shape:preview', previewData);
-    });
-
-    // This is now handled by 'client:operation:add'
-    // socket.on('client:operation:update', (operation) => {
-    //   room.state.updateOperationById(operation);
-    //   socket.to(roomName).emit('server:operation:add', operation);
-    // });
-
-    // Undo/Redo
-    socket.on('client:undo', () => {
-      const success = room.state.undo();
-      if (success) {
-        this.io.to(roomName).emit('server:history:load', room.state.getHistory());
+      try {
+        if (!data) return;
+        
+        const previewData = {
+          ...data,
+          userId: socket.id,
+          userName: user.name,
+          userColor: user.color,
+          timestamp: Date.now()
+        };
+        
+        socket.to(roomName).emit('server:shape:preview', previewData);
+      } catch (error) {
+        console.error(`❌ Error processing shape preview:`, error);
       }
     });
 
+    // Global undo with conflict resolution
+    socket.on('client:undo', () => {
+      try {
+        const result = room.state.undo();
+        
+        if (result.success) {
+          // Broadcast updated history to all users
+          this.io.to(roomName).emit('server:history:load', room.state.getHistory());
+          
+          // Notify about what was undone
+          this.io.to(roomName).emit('server:operation:undone', {
+            operationId: result.undoneOperation?.id,
+            userId: socket.id,
+            userName: user.name
+          });
+          
+          console.log(`⏪ ${user.name} undid operation in ${roomName}`);
+        } else {
+          socket.emit('server:error', { message: 'Nothing to undo' });
+        }
+      } catch (error) {
+        console.error(`❌ Error processing undo:`, error);
+        socket.emit('server:error', { message: 'Failed to undo' });
+      }
+    });
+
+    // Global redo
     socket.on('client:redo', () => {
-      const success = room.state.redo();
-      if (success) {
-        this.io.to(roomName).emit('server:history:load', room.state.getHistory());
+      try {
+        const result = room.state.redo();
+        
+        if (result.success) {
+          this.io.to(roomName).emit('server:history:load', room.state.getHistory());
+          
+          this.io.to(roomName).emit('server:operation:redone', {
+            operationId: result.redoneOperation?.id,
+            userId: socket.id,
+            userName: user.name
+          });
+          
+          console.log(`⏩ ${user.name} redid operation in ${roomName}`);
+        } else {
+          socket.emit('server:error', { message: 'Nothing to redo' });
+        }
+      } catch (error) {
+        console.error(`❌ Error processing redo:`, error);
+        socket.emit('server:error', { message: 'Failed to redo' });
       }
     });
 
     // Clear canvas
     socket.on('client:clear', () => {
-      room.state.clear();
-      this.io.to(roomName).emit('server:history:load', []);
+      try {
+        room.state.clear();
+        this.io.to(roomName).emit('server:history:load', []);
+        
+        this.io.to(roomName).emit('server:canvas:cleared', {
+          userId: socket.id,
+          userName: user.name
+        });
+        
+        console.log(`🗑️ ${user.name} cleared canvas in ${roomName}`);
+      } catch (error) {
+        console.error(`❌ Error clearing canvas:`, error);
+        socket.emit('server:error', { message: 'Failed to clear canvas' });
+      }
     });
 
-    // Cursor movement
+    // Cursor movement (volatile - not guaranteed delivery)
     socket.on('client:cursor:move', (cursorData) => {
-      socket.to(roomName).emit('server:cursor:move', {
-        ...cursorData,
-        userId: socket.id,
-        userName: user.name,
-        userColor: user.color
-      });
+      try {
+        socket.volatile.to(roomName).emit('server:cursor:move', {
+          ...cursorData,
+          userId: socket.id,
+          userName: user.name,
+          userColor: user.color
+        });
+      } catch (error) {
+        // Silently fail for cursor movements
+      }
     });
 
     // Ping for latency
     socket.on('client:ping', (timestamp) => {
-      socket.emit('server:pong', timestamp);
+      try {
+        socket.emit('server:pong', timestamp);
+      } catch (error) {
+        console.error(`❌ Error processing ping:`, error);
+      }
     });
 
     // Request room list
     socket.on('client:rooms:request', () => {
-      socket.emit('server:rooms:list', this.getAllRoomNames());
+      try {
+        socket.emit('server:rooms:list', this.getAllRoomNames());
+      } catch (error) {
+        console.error(`❌ Error fetching room list:`, error);
+      }
+    });
+
+    // Handle socket errors
+    socket.on('error', (error) => {
+      console.error(`❌ Socket error for ${user.name}:`, error);
     });
 
     // Disconnect
-    socket.on('disconnect', () => {
-      this.leaveRoom(socket, roomName, user);
+    socket.on('disconnect', (reason) => {
+      console.log(`🔌 ${user.name} disconnected: ${reason}`);
+      
+      // Don't immediately remove from room - wait for reconnection
+      setTimeout(() => {
+        const currentRoom = this.rooms.get(roomName);
+        if (currentRoom && currentRoom.users.has(socket.id)) {
+          this.leaveRoom(socket, roomName, user);
+        }
+      }, 5000); // 5 second grace period for reconnection
     });
+  }
+
+  /**
+   * Validate operation data structure
+   */
+  validateOperation(operation) {
+    if (!operation || typeof operation !== 'object') return false;
+    
+    // Check required fields based on operation type
+    switch (operation.type) {
+      case 'stroke':
+        return Array.isArray(operation.points) && 
+               operation.points.length > 0 &&
+               operation.color &&
+               typeof operation.width === 'number';
+      
+      case 'shape':
+        return operation.shape &&
+               typeof operation.startX === 'number' &&
+               typeof operation.startY === 'number' &&
+               typeof operation.endX === 'number' &&
+               typeof operation.endY === 'number' &&
+               operation.color &&
+               typeof operation.width === 'number';
+      
+      default:
+        return false;
+    }
   }
 }
 
