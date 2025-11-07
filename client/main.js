@@ -9,7 +9,6 @@ class App {
     this.canvas = null;
     this.socketService = null;
     
-    // Start by setting up modal handlers
     document.addEventListener('DOMContentLoaded', () => {
       this.setupModalHandlers();
     });
@@ -21,18 +20,14 @@ class App {
     const loginBtn = document.getElementById('login-btn');
     let selectedColor = null;
 
-    // Handle color selection
     userColorGrid.addEventListener('click', (e) => {
       if (e.target.classList.contains('color-option')) {
-        // remove selected from all
         userColorGrid.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
-        // add selected to clicked
         e.target.classList.add('selected');
         selectedColor = e.target.dataset.color;
       }
     });
 
-    // Handle user login
     loginBtn.addEventListener('click', () => {
       const username = usernameInput.value.trim();
       if (!username) { alert('Please enter a username'); return; }
@@ -40,7 +35,6 @@ class App {
       
       this.localUser = { name: username, color: selectedColor };
       
-      // Hide user modal, show room modal
       document.getElementById('modal-user').classList.remove('active');
       document.getElementById('modal-room').classList.add('active');
     });
@@ -48,7 +42,6 @@ class App {
     const roomnameInput = document.getElementById('roomname');
     const joinRoomBtn = document.getElementById('join-room-btn');
 
-    // Handle room joining
     joinRoomBtn.addEventListener('click', () => {
       const roomName = roomnameInput.value.trim();
       if (!roomName) { alert('Please enter a room name'); return; }
@@ -58,9 +51,7 @@ class App {
     });
   }
 
-  // This was the old 'init' logic
   initializeApp(roomName) {
-    // Hide modal, show app
     document.getElementById('modal-room').classList.remove('active');
     document.getElementById('main-app').classList.remove('hidden');
 
@@ -76,8 +67,57 @@ class App {
       this.canvas.remoteDraw(data);
     };
 
-    // Connect with user details
+    // New latency callback
+    this.socketService.onLatencyUpdate = (latency) => {
+      const el = document.getElementById('latency');
+      if (el) el.textContent = latency;
+    };
+
+    // New clear canvas listener
+    this.socketService.socket.on('server:clear', () => {
+      this.canvas.clear();
+    });
+    
     this.socketService.connect(roomName, this.localUser);
+
+    // Setup new UI
+    this.setupUI();
+  }
+
+  // New method to set up UI event listeners
+  setupUI() {
+    // Sidebar
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const menuBtn = document.getElementById('menu-btn');
+    const closeBtn = document.getElementById('sidebar-close');
+    const leaveBtn = document.getElementById('leave-room-btn');
+
+    const openSidebar = () => { sidebar.classList.add('open'); overlay.classList.add('active'); };
+    const closeSidebar = () => { sidebar.classList.remove('open'); overlay.classList.remove('active'); };
+
+    menuBtn.addEventListener('click', openSidebar);
+    closeBtn.addEventListener('click', closeSidebar);
+    overlay.addEventListener('click', closeSidebar);
+
+    leaveBtn.addEventListener('click', () => {
+      if (confirm('Leave this room?')) {
+        this.socketService.socket.disconnect();
+        location.reload();
+      }
+    });
+
+    // Fill sidebar info
+    document.getElementById('current-room-name').textContent = this.currentRoom;
+    document.getElementById('sidebar-user-avatar').style.background = this.localUser.color;
+    document.getElementById('sidebar-user-name').textContent = this.localUser.name;
+
+    // Clear button
+    document.getElementById('clear-btn').addEventListener('click', () => {
+      if (confirm('Clear the entire canvas? This affects all users.')) {
+        this.socketService.sendClear();
+      }
+    });
   }
 }
 

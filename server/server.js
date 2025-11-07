@@ -15,11 +15,9 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-  // Get user/room details from the handshake
   const { roomName, username, color } = socket.handshake.query;
 
   if (!roomName || !username || !color) {
-    // Basic validation
     console.log('Connection rejected: Missing parameters');
     socket.disconnect();
     return;
@@ -32,6 +30,17 @@ io.on('connection', (socket) => {
 
   socket.on('draw', (data) => {
     socket.to(roomName).emit('draw', data);
+  });
+
+  // New handler for clear
+  socket.on('client:clear', () => {
+    // Just broadcast, client will handle the clearing
+    io.to(roomName).emit('server:clear');
+  });
+
+  // New handler for ping
+  socket.on('client:ping', (timestamp) => {
+    socket.emit('server:pong', timestamp);
   });
 
   socket.on('disconnect', () => {

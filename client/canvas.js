@@ -10,30 +10,36 @@ class DrawingCanvas {
 
     this.onDraw = null; // Callback for local draw events
 
+    // FPS counter
+    this.lastFrameTime = performance.now();
+    this.frameCount = 0;
+    this.fps = 0;
+
     this.setupCanvas();
     this.bindEvents();
+    this.startRenderLoop(); // Start the loop
   }
 
   setupCanvas() {
-    // Updated setup for full-screen canvas
     const container = this.canvas.parentElement;
     this.canvas.width = container.clientWidth;
     this.canvas.height = container.clientHeight;
 
-    // Add a resize listener
+    // Clear canvas to white
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
     window.addEventListener('resize', () => {
-      // Save canvas content
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
       tempCanvas.width = this.canvas.width;
       tempCanvas.height = this.canvas.height;
       tempCtx.drawImage(this.canvas, 0, 0);
 
-      // Resize
       this.canvas.width = container.clientWidth;
       this.canvas.height = container.clientHeight;
       
-      // Restore canvas content
+      // Redraw temp canvas
       this.ctx.drawImage(tempCanvas, 0, 0);
     });
   }
@@ -43,6 +49,24 @@ class DrawingCanvas {
     this.canvas.addEventListener('pointermove', (e) => this.draw(e));
     this.canvas.addEventListener('pointerup', () => this.stopDrawing());
     this.canvas.addEventListener('pointerleave', () => this.stopDrawing());
+  }
+
+  // New render loop for FPS
+  startRenderLoop() {
+    const loop = (currentTime) => {
+      this.frameCount++;
+      if (currentTime >= this.lastFrameTime + 1000) {
+        this.fps = Math.round((this.frameCount * 1000) / (currentTime - this.lastFrameTime));
+        this.frameCount = 0;
+        this.lastFrameTime = currentTime;
+        
+        // Update the UI
+        const fpsEl = document.getElementById('fps');
+        if (fpsEl) fpsEl.textContent = this.fps;
+      }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
   }
 
   getPointerPos(e) {
@@ -67,7 +91,8 @@ class DrawingCanvas {
       x0: this.lastX,
       y0: this.lastY,
       x1: pos.x,
-      y1: pos.y
+      y1: pos.y,
+      color: '#000000' // Hardcode color for now
     };
 
     this.drawSegment(data);
@@ -84,7 +109,7 @@ class DrawingCanvas {
   }
 
   drawSegment(data) {
-    this.ctx.strokeStyle = '#000000';
+    this.ctx.strokeStyle = data.color || '#000000';
     this.ctx.lineWidth = 5;
     this.ctx.lineCap = 'round';
     this.ctx.lineJoin = 'round';
@@ -97,6 +122,12 @@ class DrawingCanvas {
 
   remoteDraw(data) {
     this.drawSegment(data);
+  }
+
+  // New method to clear the canvas
+  clear() {
+    this.ctx.fillStyle = '#ffffff';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
 }
 
