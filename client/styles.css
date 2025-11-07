@@ -53,6 +53,7 @@ body {
   color: var(--color-text-light);
   overflow: hidden;
   overscroll-behavior: none;
+  touch-action: none;
 }
 
 .hidden {
@@ -811,6 +812,7 @@ body {
   position: relative;
   overflow: hidden;
   cursor: crosshair;
+  touch-action: none;
 }
 
 #main-canvas {
