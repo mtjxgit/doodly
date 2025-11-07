@@ -15,6 +15,7 @@ class App {
     this.canvas = null;
     this.currentColor = '#000000';
     this.sessionId = this.getOrCreateSessionId();
+    this.listenersInitialized = false; // Flag to track if listeners are set
     
     this.init();
   }
@@ -103,7 +104,8 @@ class App {
         return; 
       }
       this.currentRoom = roomName;
-      this.initializeApp(roomName);
+      // Pass `true` for isFirstInit
+      this.initializeApp(roomName, true); 
     });
 
     usernameInput.addEventListener('keypress', (e) => { 
@@ -115,7 +117,11 @@ class App {
     });
   }
 
-  initializeApp(roomName) {
+  /**
+   * @param {string} roomName - The name of the room to join
+   * @param {boolean} isFirstInit - True if this is the first room join, false if switching rooms
+   */
+  initializeApp(roomName, isFirstInit = false) {
     try {
       document.getElementById('modal-room').classList.remove('active');
       document.getElementById('main-app').classList.remove('hidden');
@@ -157,7 +163,6 @@ class App {
         }
       };
 
-      // New handler for clearing shape previews
       this.socketService.onShapePreviewClear = (data) => {
         try {
           this.canvas.handleRemoteShapePreviewClear(data);
@@ -186,10 +191,23 @@ class App {
 
       this.socketService.connect(roomName, this.localUser, this.sessionId);
 
-      this.setupToolbar();
-      this.setupColorPicker();
-      this.setupSidebar();
-      this.setupKeyboardShortcuts();
+      // --- LISTENER INITIALIZATION LOGIC ---
+      // Only attach static listeners ONCE
+      if (isFirstInit && !this.listenersInitialized) {
+        this.setupToolbar();
+        this.setupColorPicker();
+        this.setupSidebar();
+        this.setupKeyboardShortcuts();
+        this.listenersInitialized = true;
+      } else {
+        // On subsequent inits (room switches), just update dynamic content
+        this.updateContextBar('brush'); // Reset tool
+        this.updateCustomColors();      // Refresh custom colors
+        this.updateSidebarInfo();       // Update room name
+      }
+      
+      // Always refresh room list on init
+      this.socketService.requestRoomsList();
       
     } catch (error) {
       console.error('Error initializing app:', error);
@@ -396,6 +414,15 @@ class App {
     }
   }
 
+  /**
+   * Updates dynamic sidebar info (room name, user)
+   */
+  updateSidebarInfo() {
+    document.getElementById('current-room-name').textContent = this.currentRoom;
+    document.getElementById('sidebar-user-avatar').style.background = this.localUser.color;
+    document.getElementById('sidebar-user-name').textContent = this.localUser.name;
+  }
+
   setupSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
@@ -424,9 +451,8 @@ class App {
       }
     });
 
-    document.getElementById('current-room-name').textContent = this.currentRoom;
-    document.getElementById('sidebar-user-avatar').style.background = this.localUser.color;
-    document.getElementById('sidebar-user-name').textContent = this.localUser.name;
+    // Set initial sidebar info
+    this.updateSidebarInfo();
 
     document.getElementById('shortcuts-btn').addEventListener('click', () => {
       closeSidebar();
@@ -451,8 +477,6 @@ class App {
         userList.classList.add('hidden');
       }
     });
-
-    this.socketService.requestRoomsList();
   }
 
   updateUserList(users) {
@@ -487,7 +511,8 @@ class App {
           if (confirm(`Switch to room "${item.dataset.room}"?`)) {
             this.socketService.disconnect();
             this.currentRoom = item.dataset.room;
-            this.initializeApp(item.dataset.room);
+            // Pass `false` for isFirstInit
+            this.initializeApp(item.dataset.room, false);
           }
         });
       });
