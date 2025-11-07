@@ -7,6 +7,7 @@ class RoomManager {
   }
 
   handleConnection(socket) {
+    // ... (This function remains unchanged)
     const { roomName, username, color } = socket.handshake.query;
 
     if (!roomName || !username || !color) {
@@ -25,7 +26,6 @@ class RoomManager {
   }
 
   joinRoom(socket, roomName, user) {
-    // Find or create room
     if (!this.rooms.has(roomName)) {
       this.rooms.set(roomName, {
         name: roomName,
@@ -42,6 +42,11 @@ class RoomManager {
     const userList = Array.from(room.users.values());
     this.io.to(roomName).emit('users:load', userList);
 
+    
+    // Send drawing history to the new user
+    socket.emit('server:history:load', room.state.getHistory());
+    // --- END OF FIX ---
+
     // Notify others of join
     socket.to(roomName).emit('user:joined', user);
 
@@ -49,19 +54,17 @@ class RoomManager {
   }
 
   leaveRoom(socket, roomName, user) {
+    // ... (This function remains unchanged)
     const room = this.rooms.get(roomName);
     if (!room) return;
 
     room.users.delete(socket.id);
 
-    // Notify others of leave
     socket.to(roomName).emit('user:left', user);
 
-    // Send updated user list
     const userList = Array.from(room.users.values());
     this.io.to(roomName).emit('users:load', userList);
 
-    // Clean up empty rooms
     if (room.users.size === 0) {
       this.rooms.delete(roomName);
       console.log(`🧹 Room ${roomName} deleted (empty)`);
@@ -72,17 +75,20 @@ class RoomManager {
 
   setupSocketHandlers(socket, roomName, user) {
     const room = this.rooms.get(roomName);
-    if (!room) return; // Failsafe
+    if (!room) return; 
 
-    // Re-bind old handlers
-    socket.on('draw', (data) => {
-      room.state.addOperation({ type: 'draw', data }); // Save operation
-      socket.to(roomName).emit('draw', data);
+    // MODIFIED 'draw' to 'client:operation:add'
+    // This makes 'draw' just one type of operation
+    socket.on('client:operation:add', (operation) => {
+      room.state.addOperation(operation);
+      // Broadcast to others
+      socket.to(roomName).emit('server:operation:add', operation);
     });
 
     socket.on('client:clear', () => {
       room.state.clear();
-      this.io.to(roomName).emit('server:clear');
+      // Use 'history:load' to force all clients to redraw the empty state
+      this.io.to(roomName).emit('server:history:load', []);
     });
 
     socket.on('client:ping', (timestamp) => {

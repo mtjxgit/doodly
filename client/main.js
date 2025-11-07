@@ -1,9 +1,8 @@
 import DrawingCanvas from './canvas.js';
 import SocketService from './websocket.js';
 
-// Main application class
 class App {
-
+  // ... (constructor and setupModalHandlers are unchanged)
   constructor() {
     this.localUser = null;
     this.currentRoom = null;
@@ -16,6 +15,7 @@ class App {
   }
 
   setupModalHandlers() {
+    // ... (This function is unchanged)
     const usernameInput = document.getElementById('username');
     const userColorGrid = document.getElementById('user-color-grid');
     const loginBtn = document.getElementById('login-btn');
@@ -52,7 +52,6 @@ class App {
     });
   }
 
-
   initializeApp(roomName) {
     document.getElementById('modal-room').classList.remove('active');
     document.getElementById('main-app').classList.remove('hidden');
@@ -60,22 +59,25 @@ class App {
     this.canvas = new DrawingCanvas('main-canvas');
     this.socketService = new SocketService();
     
-    // Wire up the callbacks
-    this.canvas.onDraw = (data) => {
-      this.socketService.sendDraw(data);
+    // --- Wire up new callbacks ---
+    this.canvas.onOperationAdd = (operation) => {
+      this.socketService.sendOperation(operation);
     };
     this.canvas.onCursorMove = (x, y) => {
       this.socketService.sendCursorMove(x, y);
     };
     
-    this.socketService.onDraw = (data) => {
-      this.canvas.remoteDraw(data);
+    this.socketService.onHistoryLoad = (history) => {
+      this.canvas.loadHistoryFromServer(history);
     };
+    this.socketService.onOperationAdd = (operation) => {
+      this.canvas.addOperationToHistory(operation);
+    };
+    // --- End new callbacks ---
+
     this.socketService.onCursorMove = (data) => {
       this.updateRemoteCursor(data);
     };
-
-    // --- New Listeners ---
     this.socketService.onUsersLoad = (users) => {
       this.updateUserList(users);
     };
@@ -85,8 +87,6 @@ class App {
     this.socketService.onUserLeft = (user) => {
       this.showToast(`${user.name} left`);
     };
-    // --- End New Listeners ---
-
     this.socketService.onLatencyUpdate = (latency) => {
       const el = document.getElementById('latency');
       if (el) el.textContent = latency;
@@ -94,9 +94,10 @@ class App {
     
     this.socketService.connect(roomName, this.localUser);
 
-    this.socketService.socket.on('server:clear', () => {
-      this.canvas.clear();
-    });
+    // This listener is no longer needed, server sends 'history:load'
+    // this.socketService.socket.on('server:clear', () => {
+    //   this.canvas.clear();
+    // });
 
     this.setupUI();
     this.setupToolbar(); 
@@ -106,7 +107,7 @@ class App {
   }
 
   setupUI() {
-
+    // ... (This function remains unchanged)
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     const menuBtn = document.getElementById('menu-btn');
@@ -131,7 +132,6 @@ class App {
     document.getElementById('sidebar-user-avatar').style.background = this.localUser.color;
     document.getElementById('sidebar-user-name').textContent = this.localUser.name;
 
-    // --- New Listeners for User List Toggle ---
     const usersToggleBtn = document.getElementById('users-toggle-btn');
     const userList = document.getElementById('user-list');
 
@@ -145,11 +145,10 @@ class App {
         userList.classList.add('hidden');
       }
     });
-    // --- End New Listeners ---
   }
 
   setupToolbar() {
-
+    // ... (This function remains unchanged)
     document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
       btn.addEventListener('click', () => {
         this.selectTool(btn.dataset.tool);
@@ -169,7 +168,7 @@ class App {
   }
 
   selectTool(tool) {
-
+    // ... (This function remains unchanged)
     document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
     document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
     
@@ -179,7 +178,7 @@ class App {
   }
 
   updateContextBar(tool) {
-
+    // ... (This function remains unchanged)
     const contextContent = document.getElementById('context-content');
     contextContent.innerHTML = ''; 
 
@@ -194,7 +193,7 @@ class App {
           </div>`;
         
         document.getElementById('brush-width').addEventListener('input', (e) => {
-          const val = parseInt(e.target.value);
+          const val = parseInt(e.taget.value);
           this.canvas.setBrushWidth(val);
           document.getElementById('brush-width-value').textContent = val + 'px';
         });
@@ -221,10 +220,8 @@ class App {
     }
   }
 
-  // --- New Methods ---
-
-  // New function to show notifications
   showToast(message) {
+    // ... (This function remains unchanged)
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = 'toast';
@@ -233,14 +230,12 @@ class App {
     setTimeout(() => toast.remove(), 3000);
   }
 
-  // New function to update the user list UI
   updateUserList(users) {
-    // Update counts
+    // ... (This function remains unchanged)
     document.getElementById('current-user-count').textContent = users.length;
     document.getElementById('user-count').textContent = users.length;
     
     const userListContent = document.getElementById('user-list-content');
-    // Generate new HTML for the list
     userListContent.innerHTML = users.map(user => `
       <div class="user-item">
         <div class="user-dot" style="background: ${user.color};"></div>

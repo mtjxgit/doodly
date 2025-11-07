@@ -6,12 +6,13 @@ class SocketService {
     this.latencyHistory = [];
 
     // Callbacks
-    this.onDraw = null; 
+    this.onHistoryLoad = null; // New
+    this.onOperationAdd = null; // New
     this.onLatencyUpdate = null;
     this.onCursorMove = null;
-    this.onUsersLoad = null;    
-    this.onUserJoined = null;   
-    this.onUserLeft = null;     
+    this.onUsersLoad = null;   
+    this.onUserJoined = null;  
+    this.onUserLeft = null;    
   }
 
   connect(roomName, userDetails) {
@@ -29,19 +30,27 @@ class SocketService {
     });
 
     this.socket.on('disconnect', () => {
+      // ... (unchanged)
       console.log('Disconnected from server');
       if (this.pingInterval) {
         clearInterval(this.pingInterval);
       }
     });
 
-    this.socket.on('draw', (data) => {
-      if (this.onDraw) {
-        this.onDraw(data);
+    // --- New Listeners ---
+    this.socket.on('server:history:load', (history) => {
+      if (this.onHistoryLoad) {
+        this.onHistoryLoad(history);
       }
     });
 
-    // --- New Listeners ---
+    this.socket.on('server:operation:add', (operation) => {
+      if (this.onOperationAdd) {
+        this.onOperationAdd(operation);
+      }
+    });
+    // --- End New Listeners ---
+
     this.socket.on('users:load', (users) => {
       if (this.onUsersLoad) {
         this.onUsersLoad(users);
@@ -55,16 +64,15 @@ class SocketService {
     });
 
     this.socket.on('user:left', (user) => {
+      // ... (unchanged)
       if (this.onUserLeft) {
         this.onUserLeft(user);
       }
-      // Also remove their cursor
       const cursor = document.getElementById(`cursor-${user.id}`);
       if (cursor) {
         cursor.remove();
       }
     });
-    // --- End New Listeners ---
 
     this.socket.on('server:cursor:move', (data) => {
       if (this.onCursorMove) {
@@ -73,17 +81,15 @@ class SocketService {
     });
 
     this.socket.on('server:pong', (timestamp) => {
-
+      // ... (unchanged)
       const latency = Date.now() - timestamp;
       this.latencyHistory.push(latency);
       if (this.latencyHistory.length > 10) {
         this.latencyHistory.shift();
       }
-      
       const avgLatency = Math.round(
         this.latencyHistory.reduce((a, b) => a + b, 0) / this.latencyHistory.length
       );
-      
       if (this.onLatencyUpdate) {
         this.onLatencyUpdate(avgLatency);
       }
@@ -91,6 +97,7 @@ class SocketService {
   }
 
   startPing() {
+    // ... (unchanged)
     this.pingInterval = setInterval(() => {
       if (this.socket && this.socket.connected) {
         this.socket.emit('client:ping', Date.now());
@@ -98,9 +105,10 @@ class SocketService {
     }, 1000);
   }
 
-  sendDraw(data) {
+  // RENAMED from sendDraw
+  sendOperation(operation) {
     if (this.socket) {
-      this.socket.emit('draw', data);
+      this.socket.emit('client:operation:add', operation);
     }
   }
 

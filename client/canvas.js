@@ -4,18 +4,18 @@ class DrawingCanvas {
     this.canvas = document.getElementById(canvasId);
     this.ctx = this.canvas.getContext('2d');
     
+    this.history = []; // NEW: Local copy of history
     this.isDrawing = false;
     this.lastX = 0;
     this.lastY = 0;
 
-    // Tool state
     this.currentTool = 'brush';
     this.currentColor = '#000000';
     this.brushWidth = 5;
     this.eraserWidth = 20;
 
-    this.onDraw = null; // Callback for local draw events
-    this.onCursorMove = null; // New callback for cursor movement
+    this.onOperationAdd = null; // RENAMED from onDraw
+    this.onCursorMove = null;
 
     this.lastFrameTime = performance.now();
     this.frameCount = 0;
@@ -27,7 +27,7 @@ class DrawingCanvas {
   }
 
   setupCanvas() {
-
+    // ... (This function remains unchanged)
     const container = this.canvas.parentElement;
     this.canvas.width = container.clientWidth;
     this.canvas.height = container.clientHeight;
@@ -51,14 +51,13 @@ class DrawingCanvas {
 
   bindEvents() {
     this.canvas.addEventListener('pointerdown', (e) => this.startDrawing(e));
-    
     this.canvas.addEventListener('pointermove', (e) => this.onPointerMove(e));
-    this.canvas.addEventListener('pointerup', () => this.stopDrawing());
-    this.canvas.addEventListener('pointerleave', () => this.stopDrawing());
+    this.canvas.addEventListener('pointerup', (e) => this.onPointerUp(e)); // Modified
+    this.canvas.addEventListener('pointerleave', (e) => this.onPointerUp(e)); // Modified
   }
 
   startRenderLoop() {
-    
+    // ... (This function remains unchanged)
     const loop = (currentTime) => {
       this.frameCount++;
       if (currentTime >= this.lastFrameTime + 1000) {
@@ -82,16 +81,13 @@ class DrawingCanvas {
     };
   }
 
-  // New combined function for pointer move
   onPointerMove(e) {
     const pos = this.getPointerPos(e);
     
-    // Send cursor position regardless of drawing state
     if (this.onCursorMove) {
       this.onCursorMove(pos.x, pos.y);
     }
 
-    // Call the draw function (which checks isDrawing)
     this.draw(pos);
   }
 
@@ -101,10 +97,10 @@ class DrawingCanvas {
     [this.lastX, this.lastY] = [pos.x, pos.y];
   }
 
-  // Modified 'draw' to accept 'pos' argument
   draw(pos) {
     if (!this.isDrawing) return;
 
+    // This is now just for real-time streaming, not for history
     const isEraser = this.currentTool === 'eraser';
     const color = isEraser ? '#FFFFFF' : this.currentColor;
     const width = isEraser ? this.eraserWidth : this.brushWidth;
@@ -117,18 +113,46 @@ class DrawingCanvas {
       color: color,
       width: width
     };
-
+    
+    // Draw locally
     this.drawSegment(data);
 
-    if (this.onDraw) {
-      this.onDraw(data);
-    }
+    // We don't send to history here anymore. We wait for pointerup.
+    // We can, however, send a "stream" event for live drawing
     
     [this.lastX, this.lastY] = [pos.x, pos.y];
   }
 
-  stopDrawing() {
+  // NEW: Handle pointer up
+  onPointerUp(e) {
+    if (!this.isDrawing) return;
     this.isDrawing = false;
+    
+    const pos = this.getPointerPos(e);
+
+    
+    const isEraser = this.currentTool === 'eraser';
+    const color = isEraser ? '#FFFFFF' : this.currentColor;
+    const width = isEraser ? this.eraserWidth : this.brushWidth;
+    
+   
+    
+    const operation = {
+        type: 'stroke',
+        data: {
+            x0: this.lastX,
+            y0: this.lastY,
+            x1: pos.x,
+            y1: pos.y,
+            color: color,
+            width: width
+        }
+    };
+    
+    this.history.push(operation); // Save locally
+    if (this.onOperationAdd) {
+      this.onOperationAdd(operation); // Send to server
+    }
   }
 
   drawSegment(data) {
@@ -143,8 +167,12 @@ class DrawingCanvas {
     this.ctx.stroke();
   }
 
-  remoteDraw(data) {
-    this.drawSegment(data);
+  // RENAMED from remoteDraw
+  drawOperation(operation) {
+    if (operation.type === 'stroke') {
+        this.drawSegment(operation.data);
+    }
+    // We'll add other types (shape, text) later
   }
 
   clear() {
@@ -152,19 +180,33 @@ class DrawingCanvas {
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
+  // --- New History Methods ---
+  loadHistoryFromServer(history) {
+    this.history = history;
+    this.redrawFromHistory();
+  }
+  
+  addOperationToHistory(operation) {
+    this.history.push(operation);
+    this.drawOperation(operation);
+  }
+  
+  redrawFromHistory() {
+    this.clear();
+    this.history.forEach(op => this.drawOperation(op));
+  }
+
+  // --- Unchanged Methods ---
   setTool(tool) {
     this.currentTool = tool;
   }
-
   setColor(color) {
     this.currentColor = color;
     document.querySelector('#color-btn .color-preview').style.background = color;
   }
-
   setBrushWidth(width) {
     this.brushWidth = width;
   }
-  
   setEraserWidth(width) {
     this.eraserWidth = width;
   }
