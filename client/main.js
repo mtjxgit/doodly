@@ -67,24 +67,22 @@ class App {
       this.canvas.remoteDraw(data);
     };
 
-    // New latency callback
     this.socketService.onLatencyUpdate = (latency) => {
       const el = document.getElementById('latency');
       if (el) el.textContent = latency;
     };
+    
+    // Connect before adding listeners socket
+    this.socketService.connect(roomName, this.localUser);
 
-    // New clear canvas listener
+    
     this.socketService.socket.on('server:clear', () => {
       this.canvas.clear();
     });
     
-    this.socketService.connect(roomName, this.localUser);
-
-    // Setup new UI
     this.setupUI();
   }
 
-  // New method to set up UI event listeners
   setupUI() {
     // Sidebar
     const sidebar = document.getElementById('sidebar');
