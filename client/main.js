@@ -3,9 +3,6 @@ import SocketService from './websocket.js';
 
 /**
  * App - Main application controller
- * - Manages user session and custom colors per user
- * - Implements separate controls for different tools
- * - Handles errors and connection issues gracefully
  */
 class App {
   constructor() {
@@ -15,8 +12,8 @@ class App {
     this.canvas = null;
     this.currentColor = '#000000';
     this.sessionId = this.getOrCreateSessionId();
-    this.listenersInitialized = false; // Flag to track if listeners are set
-    
+    this.listenersInitialized = false;
+
     this.init();
   }
 
@@ -24,43 +21,33 @@ class App {
     this.setupModalHandlers();
   }
 
-  /**
-   * Generate or retrieve persistent session ID for reconnection
-   */
   getOrCreateSessionId() {
     let sessionId = sessionStorage.getItem('doodly_session_id');
     if (!sessionId) {
-      sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      sessionId = `session_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       sessionStorage.setItem('doodly_session_id', sessionId);
     }
     return sessionId;
   }
 
-  /**
-   * Get custom colors for current user from localStorage
-   */
   getUserColors() {
     if (!this.localUser) return [];
     const key = `doodly_custom_colors_${this.localUser.name}_${this.localUser.color}`;
     try {
-      const storedColors = localStorage.getItem(key);
-      return storedColors ? JSON.parse(storedColors) : [];
-    } catch (e) {
-      console.error('Error reading custom colors from localStorage', e);
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
       return [];
     }
   }
 
-  /**
-   * Save custom colors for current user to localStorage
-   */
   saveUserColors(colors) {
     if (!this.localUser) return;
     const key = `doodly_custom_colors_${this.localUser.name}_${this.localUser.color}`;
     try {
       localStorage.setItem(key, JSON.stringify(colors));
-    } catch (e) {
-      console.error('Error saving custom colors to localStorage', e);
+    } catch {
+      // ignore
     }
   }
 
@@ -68,122 +55,71 @@ class App {
     const usernameInput = document.getElementById('username');
     const userColorGrid = document.getElementById('user-color-grid');
     const loginBtn = document.getElementById('login-btn');
-    let selectedColor = null;
-
-    userColorGrid.addEventListener('click', (e) => {
-      if (e.target.classList.contains('color-option')) {
-        userColorGrid.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
-        e.target.classList.add('selected');
-        selectedColor = e.target.dataset.color;
-      }
-    });
-
-    loginBtn.addEventListener('click', () => {
-      const username = usernameInput.value.trim();
-      if (!username) { 
-        this.showError('Please enter a username'); 
-        return; 
-      }
-      if (!selectedColor) { 
-        this.showError('Please select a color'); 
-        return; 
-      }
-      
-      this.localUser = { name: username, color: selectedColor };
-      document.getElementById('modal-user').classList.remove('active');
-      document.getElementById('modal-room').classList.add('active');
-    });
-
     const roomnameInput = document.getElementById('roomname');
     const joinRoomBtn = document.getElementById('join-room-btn');
 
-    joinRoomBtn.addEventListener('click', () => {
-      const roomName = roomnameInput.value.trim();
-      if (!roomName) { 
-        this.showError('Please enter a room name'); 
-        return; 
+    let selectedColor = null;
+
+    userColorGrid.addEventListener('click', (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.classList.contains('color-option')) {
+        userColorGrid.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
+        target.classList.add('selected');
+        selectedColor = target.dataset.color || null;
       }
-      this.currentRoom = roomName;
-      // Pass `true` for isFirstInit
-      this.initializeApp(roomName, true); 
     });
 
-    usernameInput.addEventListener('keypress', (e) => { 
-      if (e.key === 'Enter') loginBtn.click(); 
-    });
-    
-    roomnameInput.addEventListener('keypress', (e) => { 
-      if (e.key === 'Enter') joinRoomBtn.click(); 
-    });
+    const tryLogin = () => {
+      const username = usernameInput.value.trim();
+      if (!username) return this.showError('Please enter a username');
+      if (!selectedColor) return this.showError('Please select a color');
+      this.localUser = { name: username, color: selectedColor };
+      document.getElementById('modal-user').classList.remove('active');
+      document.getElementById('modal-room').classList.add('active');
+    };
+
+    loginBtn.addEventListener('click', tryLogin);
+    usernameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') tryLogin(); });
+
+    const tryJoin = () => {
+      const roomName = roomnameInput.value.trim();
+      if (!roomName) return this.showError('Please enter a room name');
+      this.currentRoom = roomName;
+      this.initializeApp(roomName, true);
+    };
+
+    joinRoomBtn.addEventListener('click', tryJoin);
+    roomnameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') tryJoin(); });
   }
 
-  /**
-   * @param {string} roomName - The name of the room to join
-   * @param {boolean} isFirstInit - True if this is the first room join, false if switching rooms
-   */
   initializeApp(roomName, isFirstInit = false) {
     try {
       document.getElementById('modal-room').classList.remove('active');
       document.getElementById('main-app').classList.remove('hidden');
-      
+
       this.canvas = new DrawingCanvas('main-canvas');
       this.socketService = new SocketService();
 
-      // Setup socket callbacks
-      this.socketService.onHistoryLoad = (history) => {
-        try {
-          this.canvas.loadHistoryFromServer(history);
-        } catch (error) {
-          console.error('Error loading history:', error);
-          this.showError('Failed to load canvas history');
-        }
-      };
-      
-      this.socketService.onOperationAdd = (operation) => {
-        try {
-          this.canvas.addOperationToHistory(operation);
-        } catch (error) {
-          console.error('Error adding operation:', error);
-        }
-      };
-      
-      this.socketService.onDrawStream = (data) => {
-        try {
-          this.canvas.handleRemoteDrawStream(data);
-        } catch (error) {
-          console.error('Error handling draw stream:', error);
-        }
-      };
-      
-      this.socketService.onShapePreview = (data) => {
-        try {
-          this.canvas.handleRemoteShapePreview(data);
-        } catch (error) {
-          console.error('Error handling shape preview:', error);
-        }
-      };
-
-      this.socketService.onShapePreviewClear = (data) => {
-        try {
-          this.canvas.handleRemoteShapePreviewClear(data);
-        } catch (error) {
-          console.error('Error handling shape preview clear:', error);
-        }
-      };
-      
+      // Socket -> Canvas wiring
+      this.socketService.onHistoryLoad = (history) => this.canvas.loadHistoryFromServer(history);
+      this.socketService.onOperationAdd = (op) => this.canvas.addOperationToHistory(op);
+      this.socketService.onDrawStream = (data) => this.canvas.handleRemoteDrawStream(data);
+      this.socketService.onShapePreview = (data) => this.canvas.handleRemoteShapePreview(data);
+      this.socketService.onShapePreviewClear = (data) => this.canvas.handleRemoteShapePreviewClear(data);
       this.socketService.onUsersLoad = (users) => this.updateUserList(users);
       this.socketService.onUserJoined = (user) => this.showToast(`${user.name} joined`);
       this.socketService.onUserLeft = (user) => this.showToast(`${user.name} left`);
       this.socketService.onCursorMove = (data) => this.updateRemoteCursor(data);
-      this.socketService.onLatencyUpdate = (latency) => { 
-        const el = document.getElementById('latency'); 
-        if (el) el.textContent = latency; 
+      this.socketService.onLatencyUpdate = (latency) => {
+        const el = document.getElementById('latency');
+        if (el) el.textContent = String(latency);
       };
       this.socketService.onRoomsList = (rooms) => this.updateRoomsList(rooms);
       this.socketService.onError = (error) => this.handleSocketError(error);
       this.socketService.onReconnected = () => this.showToast('Reconnected to server');
 
-      // Setup canvas callbacks
+      // Canvas -> Socket wiring
       this.canvas.onOperationAdd = (operation) => this.socketService.sendOperation(operation);
       this.canvas.onCursorMove = (x, y) => this.socketService.sendCursorMove(x, y);
       this.canvas.onDrawStream = (data) => this.socketService.sendDrawStream(data);
@@ -191,8 +127,6 @@ class App {
 
       this.socketService.connect(roomName, this.localUser, this.sessionId);
 
-      // --- LISTENER INITIALIZATION LOGIC ---
-      // Only attach static listeners ONCE
       if (isFirstInit && !this.listenersInitialized) {
         this.setupToolbar();
         this.setupColorPicker();
@@ -200,15 +134,12 @@ class App {
         this.setupKeyboardShortcuts();
         this.listenersInitialized = true;
       } else {
-        // On subsequent inits (room switches), just update dynamic content
-        this.updateContextBar('brush'); // Reset tool
-        this.updateCustomColors();      // Refresh custom colors
-        this.updateSidebarInfo();       // Update room name
+        this.updateContextBar('brush');
+        this.updateCustomColors();
+        this.updateSidebarInfo();
       }
-      
-      // Always refresh room list on init
+
       this.socketService.requestRoomsList();
-      
     } catch (error) {
       console.error('Error initializing app:', error);
       this.showError('Failed to initialize application');
@@ -217,23 +148,13 @@ class App {
 
   setupToolbar() {
     document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.selectTool(btn.dataset.tool);
-      });
+      btn.addEventListener('click', () => this.selectTool(btn.dataset.tool));
     });
 
-    document.getElementById('undo-btn').addEventListener('click', () => {
-      this.socketService.sendUndo();
-    });
-    
-    document.getElementById('redo-btn').addEventListener('click', () => {
-      this.socketService.sendRedo();
-    });
-    
+    document.getElementById('undo-btn').addEventListener('click', () => this.socketService.sendUndo());
+    document.getElementById('redo-btn').addEventListener('click', () => this.socketService.sendRedo());
     document.getElementById('clear-btn').addEventListener('click', () => {
-      if (confirm('Clear the entire canvas? This affects all users.')) {
-        this.socketService.sendClear();
-      }
+      if (confirm('Clear the entire canvas? This affects all users.')) this.socketService.sendClear();
     });
 
     this.updateContextBar('brush');
@@ -243,7 +164,7 @@ class App {
     document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
     const toolBtn = document.querySelector(`[data-tool="${tool}"]`);
     if (toolBtn) toolBtn.classList.add('active');
-    
+
     this.canvas.setTool(tool);
     this.updateContextBar(tool);
   }
@@ -252,99 +173,98 @@ class App {
     const contextContent = document.getElementById('context-content');
     contextContent.innerHTML = '';
 
-    switch (tool) {
-      case 'brush':
-        const currentBrushWidth = this.canvas.brushWidth;
-        contextContent.innerHTML = `
-          <div class="context-control">
-            <label>Brush Width</label>
-            <input type="range" id="brush-width" min="1" max="50" value="${currentBrushWidth}">
-            <span id="brush-width-value">${currentBrushWidth}px</span>
+    if (tool === 'brush') {
+      const val = this.canvas.brushWidth;
+      contextContent.innerHTML = `
+        <div class="context-control">
+          <label>Brush Width</label>
+          <input type="range" id="brush-width" min="1" max="50" value="${val}">
+          <span id="brush-width-value">${val}px</span>
+        </div>
+      `;
+      document.getElementById('brush-width').addEventListener('input', (e) => {
+        const v = parseInt(e.target.value, 10);
+        this.canvas.setBrushWidth(v);
+        document.getElementById('brush-width-value').textContent = `${v}px`;
+      });
+      return;
+    }
+
+    if (tool === 'eraser') {
+      const val = this.canvas.eraserWidth;
+      contextContent.innerHTML = `
+        <div class="context-control">
+          <label>Eraser Width</label>
+          <input type="range" id="eraser-width" min="5" max="100" value="${val}">
+          <span id="eraser-width-value">${val}px</span>
+        </div>
+      `;
+      document.getElementById('eraser-width').addEventListener('input', (e) => {
+        const v = parseInt(e.target.value, 10);
+        this.canvas.setEraserWidth(v);
+        document.getElementById('eraser-width-value').textContent = `${v}px`;
+      });
+      return;
+    }
+
+    if (tool === 'shape') {
+      const val = this.canvas.shapeWidth;
+      contextContent.innerHTML = `
+        <div class="context-control">
+          <label>Shape</label>
+          <div class="shape-options">
+            <button class="shape-btn active" data-shape="rectangle">▭</button>
+            <button class="shape-btn" data-shape="circle">●</button>
+            <button class="shape-btn" data-shape="triangle">▲</button>
           </div>
-        `;
-        
-        document.getElementById('brush-width').addEventListener('input', (e) => {
-          const val = parseInt(e.target.value);
-          this.canvas.setBrushWidth(val);
-          document.getElementById('brush-width-value').textContent = val + 'px';
+        </div>
+        <div class="context-control">
+          <label>Shape Width</label>
+          <input type="range" id="shape-width" min="1" max="20" value="${val}">
+          <span id="shape-width-value">${val}px</span>
+        </div>
+      `;
+      document.querySelectorAll('.shape-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          this.canvas.setShape(btn.dataset.shape);
         });
-        break;
-        
-      case 'eraser':
-        const currentEraserWidth = this.canvas.eraserWidth;
-        contextContent.innerHTML = `
-          <div class="context-control">
-            <label>Eraser Width</label>
-            <input type="range" id="eraser-width" min="5" max="100" value="${currentEraserWidth}">
-            <span id="eraser-width-value">${currentEraserWidth}px</span>
-          </div>
-        `;
-        
-        document.getElementById('eraser-width').addEventListener('input', (e) => {
-          const val = parseInt(e.target.value);
-          this.canvas.setEraserWidth(val);
-          document.getElementById('eraser-width-value').textContent = val + 'px';
-        });
-        break;
-        
-      case 'shape':
-        const currentShapeWidth = this.canvas.shapeWidth;
-        contextContent.innerHTML = `
-          <div class="context-control">
-            <label>Shape</label>
-            <div class="shape-options">
-              <button class="shape-btn active" data-shape="rectangle">▭</button>
-              <button class="shape-btn" data-shape="circle">●</button>
-              <button class="shape-btn" data-shape="triangle">▲</button>
-            </div>
-          </div>
-          <div class="context-control">
-            <label>Shape Width</label>
-            <input type="range" id="shape-width" min="1" max="20" value="${currentShapeWidth}">
-            <span id="shape-width-value">${currentShapeWidth}px</span>
-          </div>
-        `;
-        
-        document.querySelectorAll('.shape-btn').forEach(btn => {
-          btn.addEventListener('click', () => {
-            document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            this.canvas.setShape(btn.dataset.shape);
-          });
-        });
-        
-        document.getElementById('shape-width').addEventListener('input', (e) => {
-          const val = parseInt(e.target.value);
-          this.canvas.setShapeWidth(val);
-          document.getElementById('shape-width-value').textContent = val + 'px';
-        });
-        
-        this.canvas.setShape('rectangle');
-        break;
+      });
+      document.getElementById('shape-width').addEventListener('input', (e) => {
+        const v = parseInt(e.target.value, 10);
+        this.canvas.setShapeWidth(v);
+        document.getElementById('shape-width-value').textContent = `${v}px`;
+      });
+      this.canvas.setShape('rectangle');
     }
   }
 
   setupColorPicker() {
     const colorBtn = document.getElementById('color-btn');
     const colorPicker = document.getElementById('color-picker');
-    const colorPreview = colorBtn.querySelector('.color-preview');
+    const previewEl = colorBtn.querySelector('.color-preview');
+
+    const hidePicker = (e) => {
+      if (!colorPicker.contains(e.target) && e.target !== colorBtn) {
+        colorPicker.classList.add('hidden');
+      }
+    };
 
     colorBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       colorPicker.classList.toggle('hidden');
     });
 
-    document.addEventListener('click', (e) => {
-      if (!colorPicker.contains(e.target) && e.target !== colorBtn) {
-        colorPicker.classList.add('hidden');
-      }
-    });
+    document.addEventListener('click', hidePicker);
 
     colorPicker.addEventListener('click', (e) => {
-      if (e.target.classList.contains('color-option') && 
-          !e.target.classList.contains('empty-slot') && 
-          !e.target.classList.contains('add-custom')) {
-        this.setColor(e.target.dataset.color);
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.classList.contains('color-option') &&
+          !target.classList.contains('empty-slot') &&
+          !target.classList.contains('add-custom')) {
+        this.setColor(target.dataset.color);
       }
     });
 
@@ -352,28 +272,20 @@ class App {
   }
 
   setColor(color) {
+    if (!color) return;
     this.currentColor = color;
     this.canvas.setColor(color);
-    document.querySelector('#color-btn .color-preview').style.background = color;
+    const preview = document.querySelector('#color-btn .color-preview');
+    if (preview) preview.style.background = color;
   }
 
-  /**
-   * Add custom color with FIFO behavior after 7 colors
-   */
   addCustomColor(color) {
     const colors = this.getUserColors();
-    
-    // Check if color already exists
     if (colors.includes(color)) {
       this.setColor(color);
       return;
     }
-    
-    // FIFO: Remove first color if we have 7
-    if (colors.length >= 7) {
-      colors.shift(); // Remove first (oldest) color
-    }
-    
+    if (colors.length >= 7) colors.shift();
     colors.push(color);
     this.saveUserColors(colors);
     this.updateCustomColors();
@@ -381,31 +293,28 @@ class App {
   }
 
   updateCustomColors() {
-    const customColorsGrid = document.getElementById('custom-colors');
+    const grid = document.getElementById('custom-colors');
     const colors = this.getUserColors();
-    const slots = [];
-    
+    const parts = [];
+
     colors.forEach(color => {
       const border = color === '#FFFFFF' ? 'border: 1px solid #555;' : '';
-      slots.push(`<div class="color-option" data-color="${color}" style="background: ${color}; ${border}"></div>`);
+      parts.push(`<div class="color-option" data-color="${color}" style="background: ${color}; ${border}"></div>`);
     });
-    
-    while (slots.length < 7) {
-      slots.push(`<div class="color-option empty-slot" style="background: transparent; border: 2px dashed #555;"></div>`);
+
+    while (parts.length < 7) {
+      parts.push('<div class="color-option empty-slot" style="background: transparent; border: 2px dashed #555;"></div>');
     }
-    
-    // Add the "+" button with native color picker
-    slots.push(`
+
+    parts.push(`
       <div class="color-option add-custom" style="position: relative;">
-        <input type="color" id="custom-color-picker" 
-               style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+        <input type="color" id="custom-color-picker" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
         +
       </div>
     `);
-    
-    customColorsGrid.innerHTML = slots.join('');
-    
-    // Attach color picker event
+
+    grid.innerHTML = parts.join('');
+
     const colorInput = document.getElementById('custom-color-picker');
     if (colorInput) {
       colorInput.addEventListener('change', (e) => {
@@ -414,9 +323,6 @@ class App {
     }
   }
 
-  /**
-   * Updates dynamic sidebar info (room name, user)
-   */
   updateSidebarInfo() {
     document.getElementById('current-room-name').textContent = this.currentRoom;
     document.getElementById('sidebar-user-avatar').style.background = this.localUser.color;
@@ -430,15 +336,8 @@ class App {
     const closeBtn = document.getElementById('sidebar-close');
     const leaveBtn = document.getElementById('leave-room-btn');
 
-    const openSidebar = () => { 
-      sidebar.classList.add('open'); 
-      overlay.classList.add('active'); 
-    };
-    
-    const closeSidebar = () => { 
-      sidebar.classList.remove('open'); 
-      overlay.classList.remove('active'); 
-    };
+    const openSidebar = () => { sidebar.classList.add('open'); overlay.classList.add('active'); };
+    const closeSidebar = () => { sidebar.classList.remove('open'); overlay.classList.remove('active'); };
 
     menuBtn.addEventListener('click', openSidebar);
     closeBtn.addEventListener('click', closeSidebar);
@@ -451,7 +350,6 @@ class App {
       }
     });
 
-    // Set initial sidebar info
     this.updateSidebarInfo();
 
     document.getElementById('shortcuts-btn').addEventListener('click', () => {
@@ -463,7 +361,6 @@ class App {
       document.getElementById('shortcuts-modal').classList.remove('active');
     });
 
-    // Setup user list toggle
     const usersToggleBtn = document.getElementById('users-toggle-btn');
     const userList = document.getElementById('user-list');
 
@@ -482,7 +379,6 @@ class App {
   updateUserList(users) {
     document.getElementById('current-user-count').textContent = users.length;
     document.getElementById('user-count').textContent = users.length;
-    
     const userListContent = document.getElementById('user-list-content');
     userListContent.innerHTML = users.map(user => `
       <div class="user-item">
@@ -495,51 +391,47 @@ class App {
   updateRoomsList(rooms) {
     const list = document.getElementById('other-rooms-list');
     const otherRooms = rooms.filter(room => room.name !== this.currentRoom);
-    
+
     if (otherRooms.length === 0) {
       list.innerHTML = '<p class="empty-state">No other rooms available</p>';
-    } else {
-      list.innerHTML = otherRooms.map(room => 
-        `<div class="room-item" data-room="${this.escapeHtml(room.name)}">
-           <span>${this.escapeHtml(room.name)}</span>
-           <span class="room-user-count">${room.userCount}</span>
-         </div>`
-      ).join('');
-      
-      list.querySelectorAll('.room-item').forEach(item => {
-        item.addEventListener('click', () => {
-          if (confirm(`Switch to room "${item.dataset.room}"?`)) {
-            this.socketService.disconnect();
-            this.currentRoom = item.dataset.room;
-            // Pass `false` for isFirstInit
-            this.initializeApp(item.dataset.room, false);
-          }
-        });
-      });
+      return;
     }
+
+    list.innerHTML = otherRooms.map(room =>
+      `<div class="room-item" data-room="${this.escapeHtml(room.name)}">
+         <span>${this.escapeHtml(room.name)}</span>
+         <span class="room-user-count">${room.userCount}</span>
+       </div>`
+    ).join('');
+
+    list.querySelectorAll('.room-item').forEach(item => {
+      item.addEventListener('click', () => {
+        if (confirm(`Switch to room "${item.dataset.room}"?`)) {
+          this.socketService.disconnect();
+          this.currentRoom = item.dataset.room;
+          this.initializeApp(item.dataset.room, false);
+        }
+      });
+    });
   }
 
   updateRemoteCursor(data) {
-    try {
-      const cursorsContainer = document.getElementById('cursors-container');
-      let cursor = document.getElementById(`cursor-${data.userId}`);
-      
-      if (!cursor) {
-        cursor = document.createElement('div');
-        cursor.id = `cursor-${data.userId}`;
-        cursor.className = 'remote-cursor';
-        cursor.style.color = data.userColor;
-        cursor.innerHTML = `
-          <div class="cursor-pointer"></div>
-          <div class="cursor-label">${this.escapeHtml(data.userName)}</div>
-        `;
-        cursorsContainer.appendChild(cursor);
-      }
-      
-      cursor.style.transform = `translate(${data.x}px, ${data.y}px)`;
-    } catch (error) {
-      console.error('Error updating remote cursor:', error);
+    const cursorsContainer = document.getElementById('cursors-container');
+    let cursor = document.getElementById(`cursor-${data.userId}`);
+
+    if (!cursor) {
+      cursor = document.createElement('div');
+      cursor.id = `cursor-${data.userId}`;
+      cursor.className = 'remote-cursor';
+      cursor.style.color = data.userColor;
+      cursor.innerHTML = `
+        <div class="cursor-pointer"></div>
+        <div class="cursor-label">${this.escapeHtml(data.userName)}</div>
+      `;
+      cursorsContainer.appendChild(cursor);
     }
+
+    cursor.style.transform = `translate(${data.x}px, ${data.y}px)`;
   }
 
   showToast(message) {
@@ -552,7 +444,7 @@ class App {
   }
 
   showError(message) {
-    alert(message); // Could be replaced with a nicer error UI
+    alert(message);
   }
 
   handleSocketError(error) {
@@ -560,9 +452,6 @@ class App {
     this.showToast(`Error: ${error.message || 'Connection issue'}`);
   }
 
-  /**
-   * Escape HTML to prevent XSS
-   */
   escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -571,33 +460,28 @@ class App {
 
   setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      const isMac = navigator.platform.toUpperCase().includes('MAC');
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
 
       if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        this.socketService.sendUndo();
+        e.preventDefault(); this.socketService.sendUndo();
       } else if (cmdOrCtrl && (e.key === 'z' || e.key === 'Z') && e.shiftKey) {
-        e.preventDefault();
-        this.socketService.sendRedo();
-      } else if (cmdOrCtrl && e.key === 'd') {
-        e.preventDefault();
-        if (confirm('Clear canvas?')) this.socketService.sendClear();
-      } else if (cmdOrCtrl && e.key === 'b') {
+        e.preventDefault(); this.socketService.sendRedo();
+      } else if (cmdOrCtrl && e.key.toLowerCase() === 'd') {
+        e.preventDefault(); if (confirm('Clear canvas?')) this.socketService.sendClear();
+      } else if (cmdOrCtrl && e.key.toLowerCase() === 'b') {
         e.preventDefault();
         document.getElementById('sidebar').classList.toggle('open');
         document.getElementById('sidebar-overlay').classList.toggle('active');
-      } else if (e.key === 'b' && !cmdOrCtrl) {
-        e.preventDefault();
-        this.selectTool('brush');
-      } else if (e.key === 'e' && !cmdOrCtrl) {
-        e.preventDefault();
-        this.selectTool('eraser');
-      } else if (e.key === 's' && !cmdOrCtrl) {
-        e.preventDefault();
-        this.selectTool('shape');
+      } else if (!cmdOrCtrl && e.key.toLowerCase() === 'b') {
+        e.preventDefault(); this.selectTool('brush');
+      } else if (!cmdOrCtrl && e.key.toLowerCase() === 'e') {
+        e.preventDefault(); this.selectTool('eraser');
+      } else if (!cmdOrCtrl && e.key.toLowerCase() === 's') {
+        e.preventDefault(); this.selectTool('shape');
       } else if (e.key === 'Escape') {
         document.getElementById('sidebar').classList.remove('open');
         document.getElementById('sidebar-overlay').classList.remove('active');
