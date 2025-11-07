@@ -426,7 +426,40 @@ body {
   background: #ffffff;
 }
 
+
 /* Cursors */
+.remote-cursor {
+  position: absolute;
+  pointer-events: none;
+  transition: transform 0.05s linear;
+  z-index: 51;
+}
+
+.cursor-pointer {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 14px solid currentColor;
+  transform: rotate(-45deg);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.cursor-label {
+  position: absolute;
+  top: 18px;
+  left: 10px;
+  background: #888888;
+  color: #000000;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  text-shadow: none;
+}
+
 #cursors-container {
   position: absolute;
   top: 0;
@@ -491,3 +524,4 @@ body {
 .context-control input[type="range"]::-moz-range-thumb:hover {
   background: #1a4a7a;
 }
+

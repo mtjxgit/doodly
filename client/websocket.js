@@ -8,6 +8,7 @@ class SocketService {
     // Callbacks
     this.onDraw = null; 
     this.onLatencyUpdate = null;
+    this.onCursorMove = null; // New callback
   }
 
   connect(roomName, userDetails) {
@@ -21,7 +22,7 @@ class SocketService {
 
     this.socket.on('connect', () => {
       console.log('Connected to server with ID:', this.socket.id);
-      this.startPing(); // Start pinging
+      this.startPing();
     });
 
     this.socket.on('disconnect', () => {
@@ -37,7 +38,13 @@ class SocketService {
       }
     });
 
-    // Pong for latency
+    // New listener for remote cursors
+    this.socket.on('server:cursor:move', (data) => {
+      if (this.onCursorMove) {
+        this.onCursorMove(data);
+      }
+    });
+
     this.socket.on('server:pong', (timestamp) => {
       const latency = Date.now() - timestamp;
       this.latencyHistory.push(latency);
@@ -55,7 +62,6 @@ class SocketService {
     });
   }
 
-  // New ping methods
   startPing() {
     this.pingInterval = setInterval(() => {
       if (this.socket && this.socket.connected) {
@@ -70,10 +76,18 @@ class SocketService {
     }
   }
 
-  // New method
   sendClear() {
     if (this.socket) {
       this.socket.emit('client:clear');
+    }
+  }
+
+  // New method to send cursor data
+  sendCursorMove(x, y) {
+    if (this.socket && this.socket.connected) {
+      // Use volatile.emit for high-frequency, non-critical data
+      // If a packet is lost, it's fine, a new one will be sent soon
+      this.socket.volatile.emit('client:cursor:move', { x, y });
     }
   }
 }

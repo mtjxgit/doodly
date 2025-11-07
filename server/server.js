@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
-const path = require('path');
+const path =
+require('path');
 const { Server } = require('socket.io');
 
 const app = express();
@@ -32,19 +33,28 @@ io.on('connection', (socket) => {
     socket.to(roomName).emit('draw', data);
   });
 
-  // New handler for clear
   socket.on('client:clear', () => {
-    // Just broadcast, client will handle the clearing
     io.to(roomName).emit('server:clear');
   });
 
-  // New handler for ping
   socket.on('client:ping', (timestamp) => {
     socket.emit('server:pong', timestamp);
   });
 
+  // New handler for cursor movement
+  socket.on('client:cursor:move', (cursorData) => {
+    // Broadcast cursor data along with user info
+    socket.to(roomName).emit('server:cursor:move', {
+      ...cursorData,
+      userId: user.id,
+      userName: user.name,
+      userColor: user.color
+    });
+  });
+
   socket.on('disconnect', () => {
     console.log(`❌ ${user.name} (${user.id}) left room: ${roomName}`);
+    // Future improvement: tell clients to remove this user's cursor
   });
 });
 

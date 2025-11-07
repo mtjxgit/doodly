@@ -15,6 +15,7 @@ class DrawingCanvas {
     this.eraserWidth = 20;
 
     this.onDraw = null; // Callback for local draw events
+    this.onCursorMove = null; // New callback for cursor movement
 
     this.lastFrameTime = performance.now();
     this.frameCount = 0;
@@ -26,6 +27,7 @@ class DrawingCanvas {
   }
 
   setupCanvas() {
+
     const container = this.canvas.parentElement;
     this.canvas.width = container.clientWidth;
     this.canvas.height = container.clientHeight;
@@ -49,12 +51,14 @@ class DrawingCanvas {
 
   bindEvents() {
     this.canvas.addEventListener('pointerdown', (e) => this.startDrawing(e));
-    this.canvas.addEventListener('pointermove', (e) => this.draw(e));
+    
+    this.canvas.addEventListener('pointermove', (e) => this.onPointerMove(e));
     this.canvas.addEventListener('pointerup', () => this.stopDrawing());
     this.canvas.addEventListener('pointerleave', () => this.stopDrawing());
   }
 
   startRenderLoop() {
+    
     const loop = (currentTime) => {
       this.frameCount++;
       if (currentTime >= this.lastFrameTime + 1000) {
@@ -78,18 +82,29 @@ class DrawingCanvas {
     };
   }
 
+  // New combined function for pointer move
+  onPointerMove(e) {
+    const pos = this.getPointerPos(e);
+    
+    // Send cursor position regardless of drawing state
+    if (this.onCursorMove) {
+      this.onCursorMove(pos.x, pos.y);
+    }
+
+    // Call the draw function (which checks isDrawing)
+    this.draw(pos);
+  }
+
   startDrawing(e) {
     this.isDrawing = true;
     const pos = this.getPointerPos(e);
     [this.lastX, this.lastY] = [pos.x, pos.y];
   }
 
-  draw(e) {
+  // Modified 'draw' to accept 'pos' argument
+  draw(pos) {
     if (!this.isDrawing) return;
 
-    const pos = this.getPointerPos(e);
-    
-    
     const isEraser = this.currentTool === 'eraser';
     const color = isEraser ? '#FFFFFF' : this.currentColor;
     const width = isEraser ? this.eraserWidth : this.brushWidth;
@@ -137,14 +152,12 @@ class DrawingCanvas {
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-
   setTool(tool) {
     this.currentTool = tool;
   }
 
   setColor(color) {
     this.currentColor = color;
-    
     document.querySelector('#color-btn .color-preview').style.background = color;
   }
 
