@@ -6,8 +6,8 @@ const DrawingState = require('./drawing-state');
  * - Handles conflict resolution for global undo/redo
  * - Manages user sessions and reconnections
  *
- * --- OPTIMIZATIONS ---
- * - Fixed: Reconnection bug that could cause duplicate users.
+ * --- OPTIMIZATIONS (v2) ---
+ * - Fixed: Room-switching bug that left "ghost" users in old rooms.
  * - Perf: Caches room list to avoid expensive disk reads on every request.
  * - Perf: Debounces global room list broadcasts to reduce network spam.
  * - Perf: Optimized shape preview clearing to not send to the sender.
@@ -42,20 +42,38 @@ class RoomManager {
       sessionId: sessionId || socket.id
     };
 
-    // --- OPTIMIZATION: Fix Reconnection Bug ---
+    // --- FIX: Handle Room-Switching ---
     const existingSession = this.userSessions.get(user.sessionId);
-    if (existingSession && existingSession.roomName === roomName) {
-      console.log(`🔄 ${user.name} reconnected to room: ${roomName}`);
-      
-      // Remove the old, stale socket ID from the room
-      const room = this.rooms.get(roomName);
-      if (room && room.users.has(existingSession.user.id)) {
-        room.users.delete(existingSession.user.id);
-        console.log(`🧹 Cleaned up old socket: ${existingSession.user.id}`);
+    if (existingSession) {
+      const oldRoomName = existingSession.roomName;
+      const oldUser = existingSession.user;
+      const oldRoom = this.rooms.get(oldRoomName);
+
+      if (oldRoom && oldRoom.users.has(oldUser.id)) {
+        if (oldRoomName === roomName) {
+          // This is a simple reconnection to the *same* room
+          console.log(`🔄 ${user.name} reconnected to room: ${roomName}`);
+          oldRoom.users.delete(oldUser.id); // Clean up old socket
+          socket.emit('server:reconnected', { message: 'Reconnected successfully' });
+        } else {
+          // This is a *room switch*
+          console.log(`🏃 ${user.name} switched from '${oldRoomName}' to '${roomName}'`);
+          // Immediately remove user from the *old* room
+          oldRoom.users.delete(oldUser.id);
+          
+          // Immediately notify the *old* room
+          this.io.to(oldRoomName).emit('user:left', oldUser);
+          const oldUserList = Array.from(oldRoom.users.values());
+          this.io.to(oldRoomName).emit('users:load', oldUserList);
+          
+          // Check if old room is now empty
+          this.checkEmptyRoom(oldRoomName);
+          // Update global room list for everyone
+          this.debouncedBroadcastRoomList();
+        }
       }
-      
-      socket.emit('server:reconnected', { message: 'Reconnected successfully' });
     }
+    // --- END FIX ---
 
     // Store/update session with the new socket ID
     this.userSessions.set(user.sessionId, { roomName, user });
@@ -97,6 +115,25 @@ class RoomManager {
     console.log(`✅ ${user.name} joined room: ${roomName} (${userList.length} users)`);
   }
 
+  // Extracted empty room check logic
+  checkEmptyRoom(roomName) {
+    const room = this.rooms.get(roomName);
+    if (room && room.users.size === 0) {
+      setTimeout(() => {
+        const currentRoom = this.rooms.get(roomName);
+        if (currentRoom && currentRoom.users.size === 0) {
+          this.rooms.delete(roomName);
+          
+          this.bustRoomListCache();
+          this.debouncedBroadcastRoomList();
+          console.log(`🧹 Room ${roomName} deleted (empty)`);
+        }
+      }, 30000); // 30 second grace period
+    } else {
+      this.debouncedBroadcastRoomList();
+    }
+  }
+
   leaveRoom(socket, roomName, user) {
     const room = this.rooms.get(roomName);
     if (!room) return;
@@ -108,22 +145,7 @@ class RoomManager {
     const userList = Array.from(room.users.values());
     this.io.to(roomName).emit('users:load', userList);
 
-    if (room.users.size === 0) {
-      setTimeout(() => {
-        const currentRoom = this.rooms.get(roomName);
-        if (currentRoom && currentRoom.users.size === 0) {
-          this.rooms.delete(roomName);
-          
-          // --- OPTIMIZATION: Bust cache and update list ---
-          this.bustRoomListCache();
-          this.debouncedBroadcastRoomList();
-          console.log(`🧹 Room ${roomName} deleted (empty)`);
-        }
-      }, 30000); // 30 second grace period
-    } else {
-      // --- OPTIMIZATION: Debounce global broadcast ---
-      this.debouncedBroadcastRoomList();
-    }
+    this.checkEmptyRoom(roomName); // Use extracted logic
 
     console.log(`❌ ${user.name} left room: ${roomName}`);
   }
@@ -221,8 +243,6 @@ class RoomManager {
       }
     });
 
-    // ... (rest of the handlers are fine, no changes needed) ...
-
     // Streaming draw updates (real-time) with error handling
     socket.on('client:draw:stream', (data) => {
       try {
@@ -308,7 +328,8 @@ class RoomManager {
           userId: socket.id,
           userName: user.name
         });
-      } catch (error) {
+      } catch (error)
+      {
         console.error(`❌ Error clearing canvas:`, error);
         socket.emit('server:error', { message: 'Failed to clear canvas' });
       }
@@ -360,14 +381,15 @@ class RoomManager {
         // Check if the user is still associated with THIS socket ID
         // If they reconnected, userSessions will have a *new* socket ID
         const currentSession = this.userSessions.get(user.sessionId);
-        const room = this.rooms.get(roomName);
-
-        if (room && room.users.has(socket.id) && (!currentSession || currentSession.user.id === socket.id)) {
-          // User has not reconnected, proceed with leave
+        
+        // Only leave if the session wasn't replaced by a new socket
+        if ((!currentSession || currentSession.user.id === socket.id)) {
           this.leaveRoom(socket, roomName, user);
           this.userSessions.delete(user.sessionId); // Clean up session
-        } else if (room && !room.users.has(socket.id)) {
-          // User already cleaned up by reconnection logic, do nothing
+        } else {
+          // User already reconnected or switched rooms.
+          // The cleanup was handled by `handleConnection`.
+          console.log(`... ${user.name}'s old socket cleanup skipped (already reconnected).`);
         }
       }, 5000); // 5 second grace period
     });
