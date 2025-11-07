@@ -1,0 +1,8 @@
+# Dependencies
+/node_modules
+
+# Room Data
+/room-data
+
+# OS files
+.DS_Store
