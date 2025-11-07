@@ -15,6 +15,7 @@ class App {
   }
 
   setupModalHandlers() {
+    // ... (This function remains unchanged)
     const usernameInput = document.getElementById('username');
     const userColorGrid = document.getElementById('user-color-grid');
     const loginBtn = document.getElementById('login-btn');
@@ -58,7 +59,6 @@ class App {
     this.canvas = new DrawingCanvas('main-canvas');
     this.socketService = new SocketService();
     
-    // Wire up the callbacks
     this.canvas.onDraw = (data) => {
       this.socketService.sendDraw(data);
     };
@@ -72,19 +72,22 @@ class App {
       if (el) el.textContent = latency;
     };
     
-    // Connect before adding listeners socket
     this.socketService.connect(roomName, this.localUser);
 
-    
     this.socketService.socket.on('server:clear', () => {
       this.canvas.clear();
     });
-    
+
     this.setupUI();
+    this.setupToolbar(); // New function call
+    
+    // Set default tool
+    this.selectTool('brush');
+    this.canvas.setColor('#000000'); // Set default color
   }
 
   setupUI() {
-    // Sidebar
+    // ... (This function remains unchanged, except for removing the 'clear-btn' listener)
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     const menuBtn = document.getElementById('menu-btn');
@@ -105,17 +108,93 @@ class App {
       }
     });
 
-    // Fill sidebar info
     document.getElementById('current-room-name').textContent = this.currentRoom;
     document.getElementById('sidebar-user-avatar').style.background = this.localUser.color;
     document.getElementById('sidebar-user-name').textContent = this.localUser.name;
+  }
 
-    // Clear button
+  // --- New Methods ---
+
+  setupToolbar() {
+    // Tool selection
+    document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.selectTool(btn.dataset.tool);
+      });
+    });
+
+    // Clear button (moved from setupUI)
     document.getElementById('clear-btn').addEventListener('click', () => {
       if (confirm('Clear the entire canvas? This affects all users.')) {
         this.socketService.sendClear();
       }
     });
+
+    // Color button (for now, just sets a hardcoded color)
+    document.getElementById('color-btn').addEventListener('click', () => {
+      // This is a placeholder. We'll add a real color picker later.
+      const newColor = this.canvas.currentColor === '#000000' ? '#FF0000' : '#000000';
+      this.canvas.setColor(newColor);
+    });
+  }
+
+  selectTool(tool) {
+    // Update button active state
+    document.querySelectorAll('.tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
+    document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
+    
+    // Set tool in canvas
+    this.canvas.setTool(tool);
+    
+    // Update the context bar
+    this.updateContextBar(tool);
+  }
+
+  updateContextBar(tool) {
+    const contextContent = document.getElementById('context-content');
+    contextContent.innerHTML = ''; // Clear previous controls
+
+    switch (tool) {
+      case 'brush':
+        const currentBrushWidth = this.canvas.brushWidth;
+        // Create brush width slider
+        contextContent.innerHTML = `
+          <div class="context-control">
+            <label>Brush Width</label>
+            <input type="range" id="brush-width" min="1" max="50" value="${currentBrushWidth}">
+            <span id="brush-width-value">${currentBrushWidth}px</span>
+          </div>`;
+        
+        // Add listener for the new slider
+        document.getElementById('brush-width').addEventListener('input', (e) => {
+          const val = parseInt(e.target.value);
+          this.canvas.setBrushWidth(val);
+          document.getElementById('brush-width-value').textContent = val + 'px';
+        });
+        break;
+      
+      case 'eraser':
+        const currentEraserWidth = this.canvas.eraserWidth;
+        // Create eraser width slider
+        contextContent.innerHTML = `
+          <div class="context-control">
+            <label>Eraser Width</label>
+            <input type="range" id="eraser-width" min="5" max="100" value="${currentEraserWidth}">
+            <span id="eraser-width-value">${currentEraserWidth}px</span>
+          </div>`;
+        
+        // Add listener for the new slider
+        document.getElementById('eraser-width').addEventListener('input', (e) => {
+          const val = parseInt(e.target.value);
+          this.canvas.setEraserWidth(val);
+          document.getElementById('eraser-width-value').textContent = val + 'px';
+        });
+        break;
+      
+      default:
+        // No controls for other tools yet
+        break;
+    }
   }
 }
 

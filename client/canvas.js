@@ -8,16 +8,21 @@ class DrawingCanvas {
     this.lastX = 0;
     this.lastY = 0;
 
+    // Tool state
+    this.currentTool = 'brush';
+    this.currentColor = '#000000';
+    this.brushWidth = 5;
+    this.eraserWidth = 20;
+
     this.onDraw = null; // Callback for local draw events
 
-    // FPS counter
     this.lastFrameTime = performance.now();
     this.frameCount = 0;
     this.fps = 0;
 
     this.setupCanvas();
     this.bindEvents();
-    this.startRenderLoop(); // Start the loop
+    this.startRenderLoop();
   }
 
   setupCanvas() {
@@ -25,7 +30,6 @@ class DrawingCanvas {
     this.canvas.width = container.clientWidth;
     this.canvas.height = container.clientHeight;
 
-    // Clear canvas to white
     this.ctx.fillStyle = '#ffffff';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
@@ -39,7 +43,6 @@ class DrawingCanvas {
       this.canvas.width = container.clientWidth;
       this.canvas.height = container.clientHeight;
       
-      // Redraw temp canvas
       this.ctx.drawImage(tempCanvas, 0, 0);
     });
   }
@@ -51,7 +54,6 @@ class DrawingCanvas {
     this.canvas.addEventListener('pointerleave', () => this.stopDrawing());
   }
 
-  // New render loop for FPS
   startRenderLoop() {
     const loop = (currentTime) => {
       this.frameCount++;
@@ -60,7 +62,6 @@ class DrawingCanvas {
         this.frameCount = 0;
         this.lastFrameTime = currentTime;
         
-        // Update the UI
         const fpsEl = document.getElementById('fps');
         if (fpsEl) fpsEl.textContent = this.fps;
       }
@@ -87,12 +88,19 @@ class DrawingCanvas {
     if (!this.isDrawing) return;
 
     const pos = this.getPointerPos(e);
+    
+    
+    const isEraser = this.currentTool === 'eraser';
+    const color = isEraser ? '#FFFFFF' : this.currentColor;
+    const width = isEraser ? this.eraserWidth : this.brushWidth;
+
     const data = {
       x0: this.lastX,
       y0: this.lastY,
       x1: pos.x,
       y1: pos.y,
-      color: '#000000' // Hardcode color for now
+      color: color,
+      width: width
     };
 
     this.drawSegment(data);
@@ -109,8 +117,8 @@ class DrawingCanvas {
   }
 
   drawSegment(data) {
-    this.ctx.strokeStyle = data.color || '#000000';
-    this.ctx.lineWidth = 5;
+    this.ctx.strokeStyle = data.color;
+    this.ctx.lineWidth = data.width;
     this.ctx.lineCap = 'round';
     this.ctx.lineJoin = 'round';
 
@@ -124,10 +132,28 @@ class DrawingCanvas {
     this.drawSegment(data);
   }
 
-  // New method to clear the canvas
   clear() {
     this.ctx.fillStyle = '#ffffff';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+
+  setTool(tool) {
+    this.currentTool = tool;
+  }
+
+  setColor(color) {
+    this.currentColor = color;
+    
+    document.querySelector('#color-btn .color-preview').style.background = color;
+  }
+
+  setBrushWidth(width) {
+    this.brushWidth = width;
+  }
+  
+  setEraserWidth(width) {
+    this.eraserWidth = width;
   }
 }
 
