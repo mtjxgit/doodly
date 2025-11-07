@@ -3,15 +3,51 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Doodly</title>
+  <title>Doodly - Real-Time Canvas</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>Welcome to Doodly</h1>
-  <p>To join a room, add <strong>?room=your_room_name</strong> to the URL.</p>
-  
-  <div id="canvas-container">
-    <canvas id="main-canvas"></canvas>
+  <div id="modal-user" class="modal active">
+    <div class="modal-content">
+      <h2>Welcome to Doodly</h2>
+      <p>Choose your identity</p>
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" placeholder="Enter your name" maxlength="20">
+      </div>
+      <div class="form-group">
+        <label>Choose Your Color</label>
+        <div class="color-grid" id="user-color-grid">
+          <div class="color-option" data-color="#FF6B6B" style="background: #FF6B6B;"></div>
+          <div class="color-option" data-color="#4ECDC4" style="background: #4ECDC4;"></div>
+          <div class="color-option" data-color="#45B7D1" style="background: #45B7D1;"></div>
+          <div class="color-option" data-color="#FFA07A" style="background: #FFA07A;"></div>
+          <div class="color-option" data-color="#98D8C8" style="background: #98D8C8;"></div>
+          <div class="color-option" data-color="#F7DC6F" style="background: #F7DC6F;"></div>
+          <div class="color-option" data-color="#BB8FCE" style="background: #BB8FCE;"></div>
+          <div class="color-option" data-color="#85C1E2" style="background: #85C1E2;"></div>
+        </div>
+      </div>
+      <button id="login-btn" class="btn-primary">Continue</button>
+    </div>
+  </div>
+
+  <div id="modal-room" class="modal">
+    <div class="modal-content">
+      <h2>Join a Room</h2>
+      <p>Enter a room name to collaborate</p>
+      <div class="form-group">
+        <label for="roomname">Room Name</label>
+        <input type="text" id="roomname" placeholder="Enter room name" maxlength="30">
+      </div>
+      <button id="join-room-btn" class="btn-primary">Join Room</button>
+    </div>
+  </div>
+
+  <div id="main-app" class="hidden">
+    <div id="canvas-container">
+      <canvas id="main-canvas"></canvas>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

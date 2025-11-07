@@ -5,26 +5,24 @@ class SocketService {
     this.onDraw = null; // Callback for remote draw events
   }
 
-  connect() {
-    // Get room name from URL
-    const roomName = new URLSearchParams(window.location.search).get('room') || 'default';
-
-    // Pass the room name in the connection query
+  // UPDATED connect method
+  connect(roomName, userDetails) {
     this.socket = io({
-      query: { room: roomName }
+      query: {
+        roomName: roomName,
+        username: userDetails.name,
+        color: userDetails.color
+      }
     });
 
     this.socket.on('connect', () => {
       console.log('Connected to server with ID:', this.socket.id);
-      document.querySelector('p').textContent = `Connected! Room: ${roomName}`;
     });
 
     this.socket.on('disconnect', () => {
       console.log('Disconnected from server');
-      document.querySelector('p').textContent = 'Disconnected. Attempting to reconnect...';
     });
 
-    // Listen for 'draw' events from the server
     this.socket.on('draw', (data) => {
       if (this.onDraw) {
         this.onDraw(data);
@@ -32,7 +30,6 @@ class SocketService {
     });
   }
 
-  // Send drawing data to the server
   sendDraw(data) {
     if (this.socket) {
       this.socket.emit('draw', data);

@@ -15,9 +15,27 @@ class DrawingCanvas {
   }
 
   setupCanvas() {
+    // Updated setup for full-screen canvas
     const container = this.canvas.parentElement;
     this.canvas.width = container.clientWidth;
     this.canvas.height = container.clientHeight;
+
+    // Add a resize listener
+    window.addEventListener('resize', () => {
+      // Save canvas content
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCanvas.width = this.canvas.width;
+      tempCanvas.height = this.canvas.height;
+      tempCtx.drawImage(this.canvas, 0, 0);
+
+      // Resize
+      this.canvas.width = container.clientWidth;
+      this.canvas.height = container.clientHeight;
+      
+      // Restore canvas content
+      this.ctx.drawImage(tempCanvas, 0, 0);
+    });
   }
 
   bindEvents() {
@@ -52,10 +70,8 @@ class DrawingCanvas {
       y1: pos.y
     };
 
-    // Draw locally first
     this.drawSegment(data);
 
-    // Send data to server
     if (this.onDraw) {
       this.onDraw(data);
     }
@@ -67,7 +83,6 @@ class DrawingCanvas {
     this.isDrawing = false;
   }
 
-  // New function to handle drawing a line segment
   drawSegment(data) {
     this.ctx.strokeStyle = '#000000';
     this.ctx.lineWidth = 5;
@@ -80,9 +95,7 @@ class DrawingCanvas {
     this.ctx.stroke();
   }
 
-  // New function to draw data coming from the server
   remoteDraw(data) {
-    // console.log('drawing remote segment');
     this.drawSegment(data);
   }
 }
