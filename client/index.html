@@ -5,16 +5,18 @@
   <!-- VITAL: Added viewport tag for mobile responsiveness -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Doodly - Real-Time Canvas</title>
+  <link href='https://cdn.boxicons.com/3.0.3/fonts/basic/boxicons.min.css' rel='stylesheet'>
   <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <!-- User Identity Modal -->
   <div id="modal-user" class="modal active">
     <div class="modal-content">
-      <h2>Welcome to Doodly</h2>
+      <h3>Welcome to Doodly</h3>
+      <h1>Doodly</h1>
       <p>Choose your identity</p>
       <div class="form-group">
         <label for="username">Username</label>
@@ -67,7 +69,7 @@
       <div class="sidebar-content">
         <div class="sidebar-section">
           <h3>Room Details</h3>
-          <div class="room-info">
+          <!-- <div class="room-info">
             <div class="info-item">
               <span class="info-label">Room:</span>
               <span id="current-room-name">-</span>
@@ -76,6 +78,10 @@
               <span class="info-label">Users:</span>
               <span id="current-user-count">0</span>
             </div>
+          </div> -->
+          <div class="room-current" data-room="${this.escapeHtml(room.name)}">
+            <span id="current-room-name">-</span>
+            <span id="current-user-count" class="room-user-count">0</span>
           </div>
           <button id="leave-room-btn" class="btn-secondary">Leave Room</button>
         </div>
@@ -90,11 +96,8 @@
         <div class="sidebar-section">
           <h3>Help</h3>
           <button id="shortcuts-btn" class="btn-link">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-              <path d="M6 8h.01M10 8h.01M14 8h.01"></path>
-            </svg>
-            Keyboard Shortcuts
+          
+            Shortcuts
           </button>
         </div>
       </div>
@@ -176,22 +179,25 @@
     <!-- Floating Toolbar (Left on Desktop, Bottom on Mobile) -->
     <div class="floating-toolbar">
       <button class="tool-btn active" data-tool="brush" data-shortcut="b" title="Brush (B)">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <i class='bxrd  bx-brush'    ></i> 
+        <!-- <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
           <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
           <path d="M2 2l7.586 7.586"></path>
-        </svg>
+        </svg> -->
       </button>
       <button class="tool-btn" data-tool="eraser" data-shortcut="e" title="Eraser (E)">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <i class='bxrd  bx-eraser'    ></i> 
+        <!-- <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M20 20H7L3 16l8-8 9 9-1 3z"></path>
           <path d="M16 16l-4-4"></path>
-        </svg>
+        </svg> -->
       </button>
       <button class="tool-btn" data-tool="shape" data-shortcut="s" title="Shapes (S)">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <i class='bxrd  bx-shapes-alt'    ></i> 
+        <!-- <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-        </svg>
+        </svg> -->
       </button>
       <div class="toolbar-divider"></div>
       <button class="tool-btn" id="color-btn" title="Color">

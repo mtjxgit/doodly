@@ -65,7 +65,9 @@ body {
   box-shadow: var(--shadow-modal);
   max-height: 90vh; overflow-y: auto;
 }
+.modal-content h1 { font-size: 48px; font-weight: 800; margin-bottom: 8px; }
 .modal-content h2 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+.modal-content h3 { color: var(--color-text-muted);font-size: 18px; font-weight: 700;  }
 .modal-content p { color: var(--color-text-muted); margin-bottom: 24px; }
 
 .modal-header {
@@ -129,11 +131,12 @@ body {
 .btn-secondary:hover { background: var(--color-danger-hover); }
 
 .btn-link {
-  background: transparent; border: none; color: var(--color-brand);
-  font-family: var(--font-main); font-size: 14px; cursor: pointer; padding: 10px; width: 100%;
-  text-align: left; display: flex; align-items: center; gap: 8px; border-radius: var(--radius-sm); transition: background 0.2s;
+  color:white;
+  background: var(--color-brand); border: none; 
+  font-family: var(--font-main); font-size: 12px; cursor: pointer; padding: 8px; width: 100%;font-weight: 600;
+  text-align: left; display: flex; align-items: center; gap: 8px; border-radius: var(--radius-md); transition: background 0.2s;
 }
-.btn-link:hover { background: var(--color-bg-light); }
+.btn-link:hover { background: var(--color-brand-dark-hover); }
 
 /* --------------------------------- */
 /* --- 4. SIDEBAR & SHORTCUTS --- */
@@ -152,7 +155,7 @@ body {
 .sidebar-overlay.active { opacity: 1; pointer-events: all; }
 
 .sidebar-header { padding: 20px; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; }
-.sidebar-title { font-size: 24px; font-weight: 700; }
+.sidebar-title { font-size: 24px; font-weight: 800; }
 .sidebar-content { flex: 1; overflow-y: auto; padding: 20px; }
 
 .sidebar-section { margin-bottom: 32px; }
@@ -160,14 +163,19 @@ body {
   font-size: 14px; font-weight: 600; color: var(--color-text-muted); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.5px;
 }
 
-.room-info { background: var(--color-bg-deep); padding: 16px; border-radius: var(--radius-md); margin-bottom: 16px; }
+.room-info { background: var(--color-bg-deep); padding: 16px; border-radius: var(--radius-lg); margin-bottom: 16px; }
 .info-item { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; }
 .info-item:last-child { margin-bottom: 0; }
 .info-item .info-label { color: var(--color-text-muted); }
 
+.room-current {
+  padding:16px 10px; background: var(--color-bg-deep); border-radius: var(--radius-md); margin-bottom: 8px; cursor: pointer;
+  transition: background 0.2s; font-size: 20px; font-weight: 700; display: flex; justify-content: space-between; align-items: center;
+}
+
 .rooms-list { max-height: 200px; overflow-y: auto; }
 .room-item {
-  padding: 12px; background: var(--color-bg-deep); border-radius: var(--radius-sm); margin-bottom: 8px; cursor: pointer;
+  padding: 12px; background: var(--color-bg-deep); border-radius: var(--radius-md); margin-bottom: 8px; cursor: pointer;
   transition: background 0.2s; font-size: 14px; display: flex; justify-content: space-between; align-items: center;
 }
 .room-item:hover { background: var(--color-bg-light); }
@@ -200,8 +208,10 @@ body {
   width: 100vw; height: 100vh; position: relative; padding-top: 60px; box-sizing: border-box;
 }
 
+
+
 .context-bar {
-  position: fixed; top: 0; left: 0; right: 0; height: 60px; background: var(--color-bg-med);
+  position: fixed; top: 0; left: 0; right: 0; height: 72px; background: var(--color-bg-med);
   border-bottom: 1px solid var(--color-border); display: flex; align-items: center; padding: 0 20px; gap: 20px; z-index: 100;
 }
 .menu-btn {
@@ -213,7 +223,8 @@ body {
 #context-content { display: flex; align-items: center; gap: 24px; flex: 1; }
 
 .context-control { display: flex; align-items: center; gap: 12px; }
-.context-control label { font-size: 16px; color: var(--color-text-med); white-space: nowrap; font-weight: 600; }
+.context-control h2 { font-size: 24px; color: var(--color-text-med); white-space: nowrap; font-weight: 700; }
+.context-control label { font-size: 16px; color: var(--color-text-muted); white-space: nowrap; font-weight: 600; }
 
 .context-control input[type="range"] {
   width: 180px; height: 8px; -webkit-appearance: none; appearance: none;
@@ -249,6 +260,9 @@ body {
   width: 48px; height: 48px; border-radius: var(--radius-full); background: transparent; border: 2px solid transparent;
   cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--color-text-muted);
   transition: all 0.2s; position: relative; flex-shrink: 0;
+}
+.floating-toolbar .tool-btn i {
+  font-size: 30px;
 }
 .tool-btn:hover { background: var(--color-bg-light); color: var(--color-text-light); }
 .tool-btn:hover::after {
@@ -356,7 +370,8 @@ body {
   .context-control label { display: none; }
   .context-control input[type="range"] { width: 100px; }
 
-  .shape-btn { width: 36px; height: 36px; font-size: 16px; }
+  .shape-btn { width: 44px; height: 44px; font-size: 26px; }
+  .shape-btn i{ font-size: 26px; }
 
   .floating-toolbar {
     width: 100vw; height: 60px; top: auto; bottom: 0; left: 0; transform: none;
