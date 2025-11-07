@@ -105,11 +105,13 @@ class SocketService {
     this.socket.on('server:pong', (timestamp) => {
       const latency = Date.now() - timestamp;
       
+      // Keep history for smoothing
       this.latencyHistory.push(latency);
       if (this.latencyHistory.length > 10) {
         this.latencyHistory.shift();
       }
       
+      // Calculate average
       const avgLatency = Math.round(
         this.latencyHistory.reduce((a, b) => a + b, 0) / this.latencyHistory.length
       );
@@ -149,7 +151,7 @@ class SocketService {
       if (this.socket && this.socket.connected) {
         this.socket.emit('client:ping', Date.now());
       }
-    }, 1000); // Ping every second
+    }, 1000); // Ping every second for more accurate latency
   }
 
   sendOperation(operation) {
@@ -167,6 +169,12 @@ class SocketService {
   sendShapePreview(data) {
     if (this.socket && this.socket.connected) {
       this.socket.emit('client:shape:preview', data);
+    }
+  }
+
+  updateOperation(operation) {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('client:operation:update', operation);
     }
   }
 
@@ -190,6 +198,7 @@ class SocketService {
 
   sendCursorMove(x, y) {
     if (this.socket && this.socket.connected) {
+      // Throttle cursor updates
       this.socket.volatile.emit('client:cursor:move', { x, y });
     }
   }

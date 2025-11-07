@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- User Identity Modal -->
   <div id="modal-user" class="modal active">
     <div class="modal-content">
       <h2>Welcome to Doodly</h2>
@@ -35,6 +36,7 @@
     </div>
   </div>
 
+  <!-- Room Selection Modal -->
   <div id="modal-room" class="modal">
     <div class="modal-content">
       <h2>Join a Room</h2>
@@ -47,7 +49,9 @@
     </div>
   </div>
 
+  <!-- Main Application -->
   <div id="main-app" class="hidden">
+    <!-- Sidebar -->
     <div id="sidebar" class="sidebar">
       <div class="sidebar-header">
         <h1 class="sidebar-title">Doodly</h1>
@@ -102,8 +106,10 @@
       </div>
     </div>
 
+    <!-- Sidebar Overlay -->
     <div id="sidebar-overlay" class="sidebar-overlay"></div>
 
+    <!-- Keyboard Shortcuts Modal -->
     <div id="shortcuts-modal" class="modal">
       <div class="modal-content shortcuts-modal">
         <div class="modal-header">
@@ -154,6 +160,7 @@
       </div>
     </div>
 
+    <!-- Context Bar (Top) -->
     <div id="context-bar" class="context-bar">
       <button id="menu-btn" class="menu-btn">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -163,20 +170,9 @@
         </svg>
       </button>
       <div id="context-content"></div>
-
-      <div class="user-list-toggle">
-        <button id="users-toggle-btn" class="menu-btn" style="position: relative;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
-          <span id="user-count" class="user-count">0</span>
-        </button>
-      </div>
     </div>
 
+    <!-- Floating Toolbar (Left) -->
     <div class="floating-toolbar">
       <button class="tool-btn active" data-tool="brush" data-shortcut="b" title="Brush (B)">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -221,6 +217,7 @@
       </button>
     </div>
 
+    <!-- Color Picker Popup -->
     <div id="color-picker" class="color-picker hidden">
       <div class="color-picker-section">
         <label>Common Colors</label>
@@ -242,18 +239,35 @@
       </div>
     </div>
 
+    <!-- User List Toggle -->
+    <div class="user-list-toggle">
+      <button id="users-toggle-btn" class="tool-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <span id="user-count" class="user-count">0</span>
+      </button>
+    </div>
+
+    <!-- User List Popup -->
     <div id="user-list" class="user-list hidden">
       <div class="user-list-header">Online Users</div>
       <div id="user-list-content"></div>
     </div>
 
+    <!-- Performance Metrics -->
     <div class="metrics">
       <div class="metric">FPS: <span id="fps">0</span></div>
       <div class="metric">Ping: <span id="latency">0</span>ms</div>
     </div>
 
+    <!-- Toast Notifications -->
     <div id="toast-container"></div>
 
+    <!-- Canvas Container -->
     <div id="canvas-container">
       <canvas id="main-canvas"></canvas>
       <div id="cursors-container"></div>

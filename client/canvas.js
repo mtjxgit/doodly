@@ -49,8 +49,6 @@ class DrawingCanvas {
       this.ctx.fillStyle = '#ffffff';
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
       this.ctx.drawImage(tempCanvas, 0, 0);
-      // Redraw history on resize
-      this.redrawFromHistory();
     });
   }
 
@@ -162,20 +160,15 @@ class DrawingCanvas {
     const pos = this.getPointerPos(e);
     this.isDrawing = false;
     let operation = null;
-    
-    // Ignore clicks
-    if (this.points.length < 2) {
-        this.points = [];
-        this.currentOperationId = null;
-        return;
-    }
 
     switch (this.currentTool) {
       case 'brush':
+        this.points.push(pos);
         operation = { type: 'stroke', points: this.points, color: this.currentColor, width: this.brushWidth, id: this.currentOperationId };
         this.history.push(operation);
         break;
       case 'eraser':
+        this.points.push(pos);
         operation = { type: 'stroke', points: this.points, color: '#ffffff', width: this.eraserWidth, id: this.currentOperationId };
         this.history.push(operation);
         break;
@@ -292,11 +285,9 @@ class DrawingCanvas {
         this.ctx.lineCap = 'round';
         this.ctx.lineJoin = 'round';
         this.ctx.beginPath();
-        if (operation.points && operation.points.length > 0) {
-          this.ctx.moveTo(operation.points[0].x, operation.points[0].y);
-          for (let i = 1; i < operation.points.length; i++) {
-            this.ctx.lineTo(operation.points[i].x, operation.points[i].y);
-          }
+        this.ctx.moveTo(operation.points[0].x, operation.points[0].y);
+        for (let i = 1; i < operation.points.length; i++) {
+          this.ctx.lineTo(operation.points[i].x, operation.points[i].y);
         }
         this.ctx.stroke();
         break;
@@ -307,13 +298,8 @@ class DrawingCanvas {
   }
 
   addOperationToHistory(operation) {
-    // When a remote op comes in, remove any local preview
-    if (operation.type === 'stroke') {
-        this.remotePreviews.delete(operation.id);
-    }
-    
     this.history.push(operation);
-    this.redrawWithPreviews(); // Redraw all
+    this.drawOperation(operation);
   }
 
   loadHistoryFromServer(history) {

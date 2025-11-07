@@ -79,7 +79,6 @@ class RoomManager {
 
   getAllRoomNames() {
     const activeRooms = Array.from(this.rooms.keys());
-    // Create a temp state just to use the helper method
     const allRooms = new DrawingState('temp').getAllRooms();
     return [...new Set([...activeRooms, ...allRooms])];
   }
@@ -117,6 +116,12 @@ class RoomManager {
       };
       socket.to(roomName).emit('server:shape:preview', previewData);
     });
+
+    // This is now handled by 'client:operation:add'
+    // socket.on('client:operation:update', (operation) => {
+    //   room.state.updateOperationById(operation);
+    //   socket.to(roomName).emit('server:operation:add', operation);
+    // });
 
     // Undo/Redo
     socket.on('client:undo', () => {

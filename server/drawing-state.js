@@ -53,6 +53,7 @@ class DrawingState {
     this.debouncedSave();
   }
 
+  // Fix: Renamed/repurposed for object/text updates
   updateOperationById(operation) {
     if (!operation.id) return;
     const index = this.drawingHistory.findIndex(op => op.id === operation.id);
@@ -69,6 +70,7 @@ class DrawingState {
   undo() {
     if (this.drawingHistory.length === 0) return false;
     
+    // Simple undo, may not work perfectly with text edits
     const operation = this.drawingHistory.pop();
     this.redoStack.push(operation);
     this.debouncedSave();

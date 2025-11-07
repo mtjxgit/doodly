@@ -9,11 +9,7 @@ class App {
     this.canvas = null;
     this.customColors = [];
     this.currentColor = '#000000';
-    
-    // Use DOMContentLoaded to make sure DOM is ready
-    document.addEventListener('DOMContentLoaded', () => {
-        this.init();
-    });
+    this.init();
   }
 
   init() {
@@ -66,15 +62,7 @@ class App {
       const roomName = roomnameInput.value.trim();
       if (!roomName) { alert('Please enter a room name'); return; }
       this.currentRoom = roomName;
-      
-      // Hide modal, show app
-      document.getElementById('modal-room').classList.remove('active');
-      document.getElementById('main-app').classList.remove('hidden');
-
-      // *** FIX: Defer canvas init to next frame ***
-      setTimeout(() => {
-        this.initializeApp(roomName);
-      }, 0);
+      this.initializeApp(roomName);
     });
 
     usernameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') loginBtn.click(); });
@@ -82,6 +70,9 @@ class App {
   }
 
   initializeApp(roomName) {
+    document.getElementById('modal-room').classList.remove('active');
+    document.getElementById('main-app').classList.remove('hidden');
+    
     this.canvas = new DrawingCanvas('main-canvas');
     this.socketService = new SocketService();
 
@@ -107,10 +98,6 @@ class App {
     this.setupColorPicker();
     this.setupSidebar();
     this.setupKeyboardShortcuts();
-
-    // Set initial tool and color
-    this.selectTool('brush');
-    this.setColor(this.currentColor);
   }
 
   setupToolbar() {
@@ -204,7 +191,8 @@ class App {
 
   addCustomColor(color) {
     if (this.customColors.length >= 7) {
-      this.customColors.shift(); // Remove the oldest
+      alert('Maximum 7 custom colors allowed');
+      return;
     }
     this.customColors.push(color);
     this.saveCustomColors();
@@ -225,10 +213,12 @@ class App {
       slots.push(`<div class="color-option empty-slot" style="background: transparent; border: 2px dashed #555;"></div>`);
     }
     
+    // Add the "+" button with native color picker
     slots.push(`<div class="color-option add-custom" style="position: relative;"><input type="color" id="custom-color-picker" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer;">+</div>`);
     
     customColorsGrid.innerHTML = slots.join('');
     
+    // Attach color picker event
     const colorInput = document.getElementById('custom-color-picker');
     if (colorInput) {
       colorInput.addEventListener('change', (e) => {
@@ -316,10 +306,7 @@ class App {
           if (confirm(`Switch to room "${item.dataset.room}"?`)) {
             this.socketService.disconnect();
             this.currentRoom = item.dataset.room;
-            // Re-init the app
-            document.getElementById('main-app').classList.add('hidden');
-            document.getElementById('modal-room').classList.add('active');
-            document.getElementById('roomname').value = this.currentRoom;
+            this.initializeApp(item.dataset.room);
           }
         });
       });
@@ -387,6 +374,5 @@ class App {
     });
   }
 }
-
 
 new App();
