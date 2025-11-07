@@ -8,7 +8,10 @@ class SocketService {
     // Callbacks
     this.onDraw = null; 
     this.onLatencyUpdate = null;
-    this.onCursorMove = null; // New callback
+    this.onCursorMove = null;
+    this.onUsersLoad = null;    
+    this.onUserJoined = null;   
+    this.onUserLeft = null;     
   }
 
   connect(roomName, userDetails) {
@@ -38,7 +41,31 @@ class SocketService {
       }
     });
 
-    // New listener for remote cursors
+    // --- New Listeners ---
+    this.socket.on('users:load', (users) => {
+      if (this.onUsersLoad) {
+        this.onUsersLoad(users);
+      }
+    });
+
+    this.socket.on('user:joined', (user) => {
+      if (this.onUserJoined) {
+        this.onUserJoined(user);
+      }
+    });
+
+    this.socket.on('user:left', (user) => {
+      if (this.onUserLeft) {
+        this.onUserLeft(user);
+      }
+      // Also remove their cursor
+      const cursor = document.getElementById(`cursor-${user.id}`);
+      if (cursor) {
+        cursor.remove();
+      }
+    });
+    // --- End New Listeners ---
+
     this.socket.on('server:cursor:move', (data) => {
       if (this.onCursorMove) {
         this.onCursorMove(data);
@@ -46,6 +73,7 @@ class SocketService {
     });
 
     this.socket.on('server:pong', (timestamp) => {
+
       const latency = Date.now() - timestamp;
       this.latencyHistory.push(latency);
       if (this.latencyHistory.length > 10) {
@@ -81,12 +109,9 @@ class SocketService {
       this.socket.emit('client:clear');
     }
   }
-
-  // New method to send cursor data
+  
   sendCursorMove(x, y) {
     if (this.socket && this.socket.connected) {
-      // Use volatile.emit for high-frequency, non-critical data
-      // If a packet is lost, it's fine, a new one will be sent soon
       this.socket.volatile.emit('client:cursor:move', { x, y });
     }
   }

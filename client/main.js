@@ -3,6 +3,7 @@ import SocketService from './websocket.js';
 
 // Main application class
 class App {
+
   constructor() {
     this.localUser = null;
     this.currentRoom = null;
@@ -15,7 +16,6 @@ class App {
   }
 
   setupModalHandlers() {
-
     const usernameInput = document.getElementById('username');
     const userColorGrid = document.getElementById('user-color-grid');
     const loginBtn = document.getElementById('login-btn');
@@ -52,6 +52,7 @@ class App {
     });
   }
 
+
   initializeApp(roomName) {
     document.getElementById('modal-room').classList.remove('active');
     document.getElementById('main-app').classList.remove('hidden');
@@ -63,7 +64,6 @@ class App {
     this.canvas.onDraw = (data) => {
       this.socketService.sendDraw(data);
     };
-    // New cursor callback
     this.canvas.onCursorMove = (x, y) => {
       this.socketService.sendCursorMove(x, y);
     };
@@ -71,10 +71,21 @@ class App {
     this.socketService.onDraw = (data) => {
       this.canvas.remoteDraw(data);
     };
-    // New cursor listener
     this.socketService.onCursorMove = (data) => {
       this.updateRemoteCursor(data);
     };
+
+    // --- New Listeners ---
+    this.socketService.onUsersLoad = (users) => {
+      this.updateUserList(users);
+    };
+    this.socketService.onUserJoined = (user) => {
+      this.showToast(`${user.name} joined`);
+    };
+    this.socketService.onUserLeft = (user) => {
+      this.showToast(`${user.name} left`);
+    };
+    // --- End New Listeners ---
 
     this.socketService.onLatencyUpdate = (latency) => {
       const el = document.getElementById('latency');
@@ -119,6 +130,22 @@ class App {
     document.getElementById('current-room-name').textContent = this.currentRoom;
     document.getElementById('sidebar-user-avatar').style.background = this.localUser.color;
     document.getElementById('sidebar-user-name').textContent = this.localUser.name;
+
+    // --- New Listeners for User List Toggle ---
+    const usersToggleBtn = document.getElementById('users-toggle-btn');
+    const userList = document.getElementById('user-list');
+
+    usersToggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      userList.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!userList.contains(e.target) && !usersToggleBtn.contains(e.target)) {
+        userList.classList.add('hidden');
+      }
+    });
+    // --- End New Listeners ---
   }
 
   setupToolbar() {
@@ -194,17 +221,43 @@ class App {
     }
   }
 
-  // New function to handle remote cursors
+  // --- New Methods ---
+
+  // New function to show notifications
+  showToast(message) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+
+  // New function to update the user list UI
+  updateUserList(users) {
+    // Update counts
+    document.getElementById('current-user-count').textContent = users.length;
+    document.getElementById('user-count').textContent = users.length;
+    
+    const userListContent = document.getElementById('user-list-content');
+    // Generate new HTML for the list
+    userListContent.innerHTML = users.map(user => `
+      <div class="user-item">
+        <div class="user-dot" style="background: ${user.color};"></div>
+        <div class="user-name">${user.name}</div>
+      </div>
+    `).join('');
+  }
+
   updateRemoteCursor(data) {
+    // ... (This function remains unchanged)
     const cursorsContainer = document.getElementById('cursors-container');
     let cursor = document.getElementById(`cursor-${data.userId}`);
     
     if (!cursor) {
-      // Create a new cursor element if it doesn't exist
       cursor = document.createElement('div');
       cursor.id = `cursor-${data.userId}`;
       cursor.className = 'remote-cursor';
-      // Set the color to the user's color
       cursor.style.color = data.userColor; 
       
       cursor.innerHTML = `
@@ -214,7 +267,6 @@ class App {
       cursorsContainer.appendChild(cursor);
     }
     
-    // Update the position
     cursor.style.transform = `translate(${data.x}px, ${data.y}px)`;
   }
 }
