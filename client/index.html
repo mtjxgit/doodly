@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Doodly - Real-Time Canvas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -45,8 +48,96 @@
   </div>
 
   <div id="main-app" class="hidden">
+    <div id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">Doodly</h1>
+        <button id="sidebar-close" class="close-btn">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="sidebar-content">
+        <div class="sidebar-section">
+          <h3>Room Details</h3>
+          <div class="room-info">
+            <div class="info-item">
+              <span class="info-label">Room:</span>
+              <span id="current-room-name">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Users:</span>
+              <span id="current-user-count">0</span>
+            </div>
+          </div>
+          <button id="leave-room-btn" class="btn-secondary">Leave Room</button>
+        </div>
+      </div>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="sidebar-user-avatar"></div>
+          <span id="sidebar-user-name">User</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div id="context-bar" class="context-bar">
+      <button id="menu-btn" class="menu-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <div id="context-content">
+        <label>Brush Width: 5px</label>
+      </div>
+    </div>
+
+    <div class="floating-toolbar">
+      <button class="tool-btn active" data-tool="brush" title="Brush (B)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+          <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+          <path d="M2 2l7.586 7.586"></path>
+        </svg>
+      </button>
+      <button class="tool-btn" data-tool="eraser" title="Eraser (E)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 20H7L3 16l8-8 9 9-1 3z"></path>
+          <path d="M16 16l-4-4"></path>
+        </svg>
+      </button>
+      <div class="toolbar-divider"></div>
+      <button class="tool-btn" id="color-btn" title="Color">
+        <div class="color-preview" style="background: #000000;"></div>
+      </button>
+      <div class="toolbar-divider"></div>
+      <button class="tool-btn" id="undo-btn" title="Undo (Ctrl+Z)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7v6h6"></path>
+          <path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"></path>
+        </svg>
+      </button>
+      <button class="tool-btn" id="clear-btn" title="Clear Canvas (Ctrl+D)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="metrics">
+      <div class="metric">FPS: <span id="fps">0</span></div>
+      <div class="metric">Ping: <span id="latency">0</span>ms</div>
+    </div>
+
     <div id="canvas-container">
       <canvas id="main-canvas"></canvas>
+      <div id="cursors-container"></div>
     </div>
   </div>
 
