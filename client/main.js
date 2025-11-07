@@ -15,6 +15,15 @@ class App {
       this.canvas = new DrawingCanvas('main-canvas');
       this.socketService = new SocketService();
       
+      // Wire up the callbacks
+      this.canvas.onDraw = (data) => {
+        this.socketService.sendDraw(data);
+      };
+      
+      this.socketService.onDraw = (data) => {
+        this.canvas.remoteDraw(data);
+      };
+
       this.socketService.connect();
     });
   }
