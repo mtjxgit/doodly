@@ -551,12 +551,18 @@ class DrawingCanvas {
     
     switch (operation.type) {
       case 'stroke':
+        ctx.save(); // <-- FIX: Save canvas state
         ctx.strokeStyle = operation.color;
         ctx.lineWidth = operation.width;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.beginPath();
-        if (!operation.points || operation.points.length === 0) return;
+        
+        if (!operation.points || operation.points.length === 0) {
+          ctx.restore(); // <-- FIX: Restore if we exit early
+          return;
+        }
+
         ctx.moveTo(operation.points[0].x, operation.points[0].y);
         
         for (let i = 1; i < operation.points.length; i++) {
@@ -564,6 +570,7 @@ class DrawingCanvas {
         }
         
         ctx.stroke();
+        ctx.restore(); // <-- FIX: Restore canvas state
         break;
         
       case 'shape':
