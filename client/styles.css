@@ -888,27 +888,6 @@ body {
   }
 }
 
-/* Text Box (Canvas-based) */
-.text-box-editing {
-  position: absolute;
-  border: 2px solid var(--color-brand);
-  background: rgba(255, 255, 255, 0.1);
-  pointer-events: none;
-  z-index: 45;
-}
-
-.text-caret {
-  position: absolute;
-  width: 2px;
-  background: var(--color-text-dark);
-  animation: blink 1s infinite;
-}
-
-@keyframes blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
-}
-
 /* User List */
 .user-list-toggle {
   position: fixed;
