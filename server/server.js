@@ -3,6 +3,11 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const RoomManager = require('./rooms');
+const fs = require('fs');
+
+
+const roomDataPath = path.join(__dirname, '../room-data');
+fs.mkdirSync(roomDataPath, { recursive: true });
 
 const app = express();
 const server = http.createServer(app);
