@@ -6,6 +6,10 @@ const path = require('path');
  * - Operations are ordered by timestamp for consistency
  * - Undo/redo maintains operation order across users
  * - Persistent storage with atomic writes
+ *
+ * --- OPTIMIZATIONS ---
+ * - Perf: Replaced expensive O(N log N) `sort()` on every add/redo
+ * - with a more efficient O(N) `_insertOperation` (splice).
  */
 class DrawingState {
   constructor(roomName) {
@@ -17,36 +21,27 @@ class DrawingState {
     this.filePath = path.join(this.dataDir, `${this.sanitizeRoomName(roomName)}.json`);
     this.tempFilePath = this.filePath + '.tmp';
 
-    // Ensure data directory exists
     if (!fs.existsSync(this.dataDir)) {
       fs.mkdirSync(this.dataDir, { recursive: true });
     }
 
-    // Load from disk if exists
     this.loadFromDisk();
   }
 
-  /**
-   * Sanitize room name for safe file system usage
-   */
   sanitizeRoomName(name) {
     return name.replace(/[^a-zA-Z0-9_-]/g, '_');
   }
 
-  /**
-   * Load room data from disk with error recovery
-   */
   loadFromDisk() {
     try {
       if (fs.existsSync(this.filePath)) {
         const data = fs.readFileSync(this.filePath, 'utf8');
         const parsed = JSON.parse(data);
         
-        // Validate loaded data
         if (Array.isArray(parsed)) {
           this.drawingHistory = parsed;
-          // Ensure operations are sorted by timestamp
-          this.sortOperations();
+          // Ensure operations are sorted on initial load
+          this.drawingHistory.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
           console.log(`📂 Loaded ${this.drawingHistory.length} operations for room: ${this.roomName}`);
         } else {
           console.warn(`⚠️ Invalid data format for room ${this.roomName}, starting fresh`);
@@ -56,12 +51,13 @@ class DrawingState {
     } catch (err) {
       console.error(`❌ Error loading room data for ${this.roomName}:`, err);
       
-      // Try to recover from backup if exists
       const backupPath = this.filePath + '.backup';
       if (fs.existsSync(backupPath)) {
         try {
           const backupData = fs.readFileSync(backupPath, 'utf8');
           this.drawingHistory = JSON.parse(backupData);
+          // Also sort backup data
+          this.drawingHistory.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
           console.log(`✅ Recovered from backup for room: ${this.roomName}`);
         } catch (backupErr) {
           console.error(`❌ Backup recovery failed:`, backupErr);
@@ -71,23 +67,16 @@ class DrawingState {
     }
   }
 
-  /**
-   * Save to disk with atomic write operation
-   * Uses temporary file and rename for atomic writes
-   */
   saveToDisk() {
     try {
-      // Create backup of existing file
       if (fs.existsSync(this.filePath)) {
         const backupPath = this.filePath + '.backup';
         fs.copyFileSync(this.filePath, backupPath);
       }
 
-      // Write to temporary file first
       const data = JSON.stringify(this.drawingHistory, null, 2);
       fs.writeFileSync(this.tempFilePath, data, 'utf8');
       
-      // Atomic rename
       fs.renameSync(this.tempFilePath, this.filePath);
       
       console.log(`💾 Saved ${this.drawingHistory.length} operations for room: ${this.roomName}`);
@@ -96,9 +85,6 @@ class DrawingState {
     }
   }
 
-  /**
-   * Debounced save to reduce disk I/O
-   */
   debouncedSave() {
     clearTimeout(this.saveTimeout);
     this.saveTimeout = setTimeout(() => {
@@ -107,41 +93,43 @@ class DrawingState {
   }
 
   /**
-   * Sort operations by timestamp for consistent ordering
+   * --- OPTIMIZATION: O(N) Insertion ---
+   * Inserts an operation in chronological order without sorting the whole array.
+   * This is much faster than O(N log N) for an already-sorted list.
    */
-  sortOperations() {
-    this.drawingHistory.sort((a, b) => {
-      const timeA = a.timestamp || 0;
-      const timeB = b.timestamp || 0;
-      return timeA - timeB;
-    });
+  _insertOperation(operation) {
+    const newTime = operation.timestamp || 0;
+    
+    // Find the correct index to insert at
+    // We search from the end for efficiency, as new ops are usually last
+    let i = this.drawingHistory.length - 1;
+    while (i >= 0 && (this.drawingHistory[i].timestamp || 0) > newTime) {
+      i--;
+    }
+    
+    // Insert at the correct position
+    this.drawingHistory.splice(i + 1, 0, operation);
   }
 
   /**
    * Add new operation with ordering
    */
   addOperation(operation) {
-    // Ensure operation has timestamp
     if (!operation.timestamp) {
       operation.timestamp = Date.now();
     }
 
-    this.drawingHistory.push(operation);
-    this.sortOperations(); // Maintain chronological order
+    // Use efficient insertion instead of push + sort
+    this._insertOperation(operation);
+    
     this.redoStack = []; // Clear redo stack on new operation
     this.debouncedSave();
   }
 
-  /**
-   * Find operation by ID
-   */
   findOperationById(id) {
     return this.drawingHistory.find(op => op.id === id);
   }
 
-  /**
-   * Update existing operation or add if not found
-   */
   updateOperationById(operation) {
     if (!operation.id) {
       this.addOperation(operation);
@@ -156,18 +144,13 @@ class DrawingState {
       operation.timestamp = originalTimestamp || operation.timestamp || Date.now();
       
       this.drawingHistory[index] = operation;
-      this.redoStack = []; // Clear redo on update
+      this.redoStack = [];
       this.debouncedSave();
     } else {
-      // Not found, add as new
       this.addOperation(operation);
     }
   }
 
-  /**
-   * Global undo - removes last operation regardless of who created it
-   * Returns: { success: boolean, undoneOperation?: Operation }
-   */
   undo() {
     if (this.drawingHistory.length === 0) {
       return { success: false };
@@ -183,18 +166,16 @@ class DrawingState {
     };
   }
 
-  /**
-   * Global redo
-   * Returns: { success: boolean, redoneOperation?: Operation }
-   */
   redo() {
     if (this.redoStack.length === 0) {
       return { success: false };
     }
     
     const operation = this.redoStack.pop();
-    this.drawingHistory.push(operation);
-    this.sortOperations(); // Maintain order
+    
+    // Use efficient insertion instead of push + sort
+    this._insertOperation(operation);
+    
     this.debouncedSave();
     
     return { 
@@ -203,32 +184,20 @@ class DrawingState {
     };
   }
 
-  /**
-   * Clear all operations
-   */
   clear() {
     this.drawingHistory = [];
     this.redoStack = [];
     this.saveToDisk();
   }
 
-  /**
-   * Get current history
-   */
   getHistory() {
-    return [...this.drawingHistory]; // Return copy to prevent external modifications
+    return [...this.drawingHistory]; // Return copy
   }
 
-  /**
-   * Get history for specific user
-   */
   getHistoryForUser(userId) {
     return this.drawingHistory.filter(op => op.userId === userId);
   }
 
-  /**
-   * Get operations count by user
-   */
   getUserStats() {
     const stats = new Map();
     
@@ -241,9 +210,6 @@ class DrawingState {
     return Object.fromEntries(stats);
   }
 
-  /**
-   * Get all room names from saved files
-   */
   getAllRooms() {
     try {
       const files = fs.readdirSync(this.dataDir);
@@ -256,9 +222,6 @@ class DrawingState {
     }
   }
 
-  /**
-   * Delete room data (cleanup)
-   */
   deleteRoom() {
     try {
       if (fs.existsSync(this.filePath)) {
@@ -281,9 +244,6 @@ class DrawingState {
     }
   }
 
-  /**
-   * Get room statistics
-   */
   getStats() {
     return {
       operationCount: this.drawingHistory.length,
