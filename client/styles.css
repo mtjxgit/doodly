@@ -9,6 +9,8 @@ body {
   background: #0a0a0a;
   color: #ffffff;
   overflow: hidden;
+  /* Disable pull-to-refresh and overscroll glow */
+  overscroll-behavior: none;
 }
 
 .hidden {
@@ -341,12 +343,6 @@ body {
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 10px;
-  transition: all 0.2s;
-}
-
-.room-item:hover .room-user-count {
-  background: #4a9eff;
-  color: #fff;
 }
 
 .empty-state {
@@ -422,6 +418,10 @@ body {
   width: 100vw;
   height: 100vh;
   position: relative;
+  /* Ensure canvas is behind toolbars */
+  padding-top: 60px;
+  /* padding-bottom: 60px; */ /* <-- FIX: Removed this, it's for mobile only */
+  box-sizing: border-box;   /* <-- FIX: Added this to contain padding */
 }
 
 /* Context Bar */
@@ -452,6 +452,7 @@ body {
   justify-content: center;
   color: #888;
   transition: all 0.2s;
+  flex-shrink: 0; /* Prevent button from shrinking */
 }
 
 .menu-btn:hover {
@@ -647,6 +648,7 @@ body {
   color: #888;
   transition: all 0.2s;
   position: relative;
+  flex-shrink: 0; /* Prevent buttons from shrinking */
 }
 
 .tool-btn:hover {
@@ -783,8 +785,8 @@ body {
 
 /* Canvas */
 #canvas-container {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%; /* Will fill the padded #main-app area */
   position: relative;
   overflow: hidden;
   cursor: crosshair;
@@ -950,4 +952,146 @@ body {
 
 .user-name {
   font-size: 14px;
+}
+
+/* --------------------------------- */
+/* --- MOBILE RESPONSIVE STYLES --- */
+/* --------------------------------- */
+
+@media (max-width: 768px) {
+  /* Modals are already mobile-friendly, just tighten padding */
+  .modal-content {
+    padding: 20px;
+  }
+  
+  .shortcuts-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  /* Main app layout: add padding for top/bottom bars */
+  #main-app {
+    padding-top: 50px;
+    padding-bottom: 60px;
+  }
+  
+  /* --- Top Bar --- */
+  .context-bar {
+    height: 50px;
+    padding: 0 10px;
+  }
+  
+  /* Make context content (brush size, etc.) scroll horizontally */
+  #context-content {
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+  }
+  
+  /* Hide labels on mobile to save space */
+  .context-control label {
+    display: none;
+  }
+  
+  /* Make sliders and inputs smaller */
+  .context-control input[type="range"] {
+    width: 100px;
+  }
+  .context-control input[type="number"] {
+    width: 60px;
+    padding: 8px;
+  }
+  .context-control select {
+    padding: 8px 12px;
+    min-width: 100px;
+  }
+  .shape-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+  
+  /* --- Bottom Toolbar (was Floating-Toolbar) --- */
+  .floating-toolbar {
+    width: 100vw;
+    height: 60px;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    transform: none;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 10px;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -5px 20px rgba(0,0,0,0.3);
+    overflow-x: auto;
+    white-space: nowrap;
+    gap: 0;
+  }
+  
+  .tool-btn {
+    width: 44px;
+    height: 44px;
+  }
+  
+  /* Hide tooltips on mobile (tap-based) */
+  .tool-btn:hover::after {
+    display: none;
+  }
+  
+  .toolbar-divider {
+    height: 30px;
+    width: 1px;
+    margin: 0 8px;
+  }
+
+  /* --- Popups --- */
+  
+  /* Reposition color picker to pop UP from the bottom */
+  .color-picker {
+    left: 50%;
+    bottom: 70px; /* 60px bar + 10px margin */
+    top: auto;
+    transform: translateX(-50%);
+    width: 90vw;
+    max-width: 300px;
+    z-index: 250;
+  }
+  
+  .color-grid {
+    gap: 8px;
+  }
+  
+  /* User list toggle position */
+  .user-list-toggle {
+    top: 10px;
+    right: 10px;
+  }
+  
+  .user-list-toggle .tool-btn {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .user-list {
+    top: 65px; /* 50px bar + 15px margin */
+    right: 10px;
+    width: 250px;
+  }
+  
+  /* Sidebar: Make it wider on mobile */
+  .sidebar {
+    width: 90vw;
+    max-width: 320px;
+    left: -90vw;
+  }
+  .sidebar.open {
+    left: 0;
+  }
+  
+  /* Hide metrics on mobile */
+  .metrics {
+    display: none;
+  }
 }
