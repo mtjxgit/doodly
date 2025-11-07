@@ -2,19 +2,14 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-const RoomManager = require('./rooms'); 
+const RoomManager = require('./rooms');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
 // Serve static files
-const clientPath = path.join(__dirname, '../client');
-app.use(express.static(clientPath));
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(clientPath, 'index.html'));
-});
+app.use(express.static(path.join(__dirname, '../client')));
 
 // Initialize room manager
 const roomManager = new RoomManager(io);

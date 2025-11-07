@@ -1,244 +1,245 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Doodly - Real-Time Canvas</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <div id="modal-user" class="modal active">
-      <div class="modal-content">
-        <h2>Welcome to Doodly</h2>
-        <p>Choose your identity</p>
-        <div class="form-group">
-          <label for="username">Username</label>
-          <input
-            type="text"
-            id="username"
-            placeholder="Enter your name"
-            maxlength="20"
-          />
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doodly - Real-Time Canvas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=Arial&family=Georgia&family=Courier+Prime&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="modal-user" class="modal active">
+    <div class="modal-content">
+      <h2>Welcome to Doodly</h2>
+      <p>Choose your identity</p>
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" placeholder="Enter your name" maxlength="20">
+      </div>
+      <div class="form-group">
+        <label>Choose Your Color</label>
+        <div class="color-grid" id="user-color-grid">
+          <div class="color-option" data-color="#FF6B6B" style="background: #FF6B6B;"></div>
+          <div class="color-option" data-color="#4ECDC4" style="background: #4ECDC4;"></div>
+          <div class="color-option" data-color="#45B7D1" style="background: #45B7D1;"></div>
+          <div class="color-option" data-color="#FFA07A" style="background: #FFA07A;"></div>
+          <div class="color-option" data-color="#98D8C8" style="background: #98D8C8;"></div>
+          <div class="color-option" data-color="#F7DC6F" style="background: #F7DC6F;"></div>
+          <div class="color-option" data-color="#BB8FCE" style="background: #BB8FCE;"></div>
+          <div class="color-option" data-color="#85C1E2" style="background: #85C1E2;"></div>
         </div>
-        <div class="form-group">
-          <label>Choose Your Color</label>
-          <div class="color-grid" id="user-color-grid">
-            <div
-              class="color-option"
-              data-color="#FF6B6B"
-              style="background: #ff6b6b"
-            ></div>
-            <div
-              class="color-option"
-              data-color="#4ECDC4"
-              style="background: #4ecdc4"
-            ></div>
-            <div
-              class="color-option"
-              data-color="#45B7D1"
-              style="background: #45b7d1"
-            ></div>
-            <div
-              class="color-option"
-              data-color="#FFA07A"
-              style="background: #ffa07a"
-            ></div>
-            <div
-              class="color-option"
-              data-color="#98D8C8"
-              style="background: #98d8c8"
-            ></div>
-            <div
-              class="color-option"
-              data-color="#F7DC6F"
-              style="background: #f7dc6f"
-            ></div>
-            <div
-              class="color-option"
-              data-color="#BB8FCE"
-              style="background: #bb8fce"
-            ></div>
-            <div
-              class="color-option"
-              data-color="#85C1E2"
-              style="background: #85c1e2"
-            ></div>
+      </div>
+      <button id="login-btn" class="btn-primary">Continue</button>
+    </div>
+  </div>
+
+  <div id="modal-room" class="modal">
+    <div class="modal-content">
+      <h2>Join a Room</h2>
+      <p>Enter a room name to collaborate</p>
+      <div class="form-group">
+        <label for="roomname">Room Name</label>
+        <input type="text" id="roomname" placeholder="Enter room name" maxlength="30">
+      </div>
+      <button id="join-room-btn" class="btn-primary">Join Room</button>
+    </div>
+  </div>
+
+  <div id="main-app" class="hidden">
+    <div id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="sidebar-title">Doodly</h1>
+        <button id="sidebar-close" class="close-btn">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="sidebar-content">
+        <div class="sidebar-section">
+          <h3>Room Details</h3>
+          <div class="room-info">
+            <div class="info-item">
+              <span class="info-label">Room:</span>
+              <span id="current-room-name">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Users:</span>
+              <span id="current-user-count">0</span>
+            </div>
+          </div>
+          <button id="leave-room-btn" class="btn-secondary">Leave Room</button>
+        </div>
+
+        <div class="sidebar-section">
+          <h3>Other Rooms</h3>
+          <div id="other-rooms-list" class="rooms-list">
+            <p class="empty-state">No other rooms available</p>
           </div>
         </div>
-        <button id="login-btn" class="btn-primary">Continue</button>
-      </div>
-    </div>
 
-    <div id="modal-room" class="modal">
-      <div class="modal-content">
-        <h2>Join a Room</h2>
-        <p>Enter a room name to collaborate</p>
-        <div class="form-group">
-          <label for="roomname">Room Name</label>
-          <input
-            type="text"
-            id="roomname"
-            placeholder="Enter room name"
-            maxlength="30"
-          />
+        <div class="sidebar-section">
+          <h3>Help</h3>
+          <button id="shortcuts-btn" class="btn-link">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+              <path d="M6 8h.01M10 8h.01M14 8h.01"></path>
+            </svg>
+            Keyboard Shortcuts
+          </button>
         </div>
-        <button id="join-room-btn" class="btn-primary">Join Room</button>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="sidebar-user-avatar"></div>
+          <span id="sidebar-user-name">User</span>
+        </div>
       </div>
     </div>
 
-    <div id="main-app" class="hidden">
-      <div id="sidebar" class="sidebar">
-        <div class="sidebar-header">
-          <h1 class="sidebar-title">Doodly</h1>
-          <button id="sidebar-close" class="close-btn">
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <div id="shortcuts-modal" class="modal">
+      <div class="modal-content shortcuts-modal">
+        <div class="modal-header">
+          <h2>Keyboard Shortcuts</h2>
+          <button class="close-btn" id="shortcuts-close">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
         </div>
-        <div class="sidebar-content">
-          <div class="sidebar-section">
-            <h3>Room Details</h3>
-            <div class="room-info">
-              <div class="info-item">
-                <span class="info-label">Room:</span>
-                <span id="current-room-name">-</span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">Users:</span>
-                <span id="current-user-count">0</span>
-              </div>
+        <div class="shortcuts-grid">
+          <div class="shortcuts-column">
+            <h3>Actions</h3>
+            <div class="shortcut-item">
+              <span>Undo</span>
+              <kbd>Ctrl/Cmd + Z</kbd>
             </div>
-            <button id="leave-room-btn" class="btn-secondary">
-              Leave Room
-            </button>
+            <div class="shortcut-item">
+              <span>Redo</span>
+              <kbd>Ctrl/Cmd + Shift + Z</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span>Clear Canvas</span>
+              <kbd>Ctrl/Cmd + D</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span>Toggle Sidebar</span>
+              <kbd>Ctrl/Cmd + B</kbd>
+            </div>
           </div>
-        </div>
-        <div class="sidebar-footer">
-          <div class="user-info">
-            <div class="user-avatar" id="sidebar-user-avatar"></div>
-            <span id="sidebar-user-name">User</span>
+          <div class="shortcuts-column">
+            <h3>Tools</h3>
+            <div class="shortcut-item">
+              <span>Brush</span>
+              <kbd>B</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span>Eraser</span>
+              <kbd>E</kbd>
+            </div>
+            <div class="shortcut-item">
+              <span>Shape</span>
+              <kbd>S</kbd>
+            </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <div id="sidebar-overlay" class="sidebar-overlay"></div>
+    <div id="context-bar" class="context-bar">
+      <button id="menu-btn" class="menu-btn">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <div id="context-content"></div>
 
-      <div id="context-bar" class="context-bar">
-        <button id="menu-btn" class="menu-btn">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
+      <div class="user-list-toggle">
+        <button id="users-toggle-btn" class="menu-btn" style="position: relative;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
           </svg>
-        </button>
-        <div id="context-content">
-          <label>Brush Width: 5px</label>
-        </div>
-      </div>
-
-      <div class="floating-toolbar">
-        <button class="tool-btn active" data-tool="brush" title="Brush (B)">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
-            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
-            <path d="M2 2l7.586 7.586"></path>
-          </svg>
-        </button>
-        <button class="tool-btn" data-tool="eraser" title="Eraser (E)">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M20 20H7L3 16l8-8 9 9-1 3z"></path>
-            <path d="M16 16l-4-4"></path>
-          </svg>
-        </button>
-        <div class="toolbar-divider"></div>
-        <button class="tool-btn" id="color-btn" title="Color">
-          <div class="color-preview" style="background: #000000"></div>
-        </button>
-        <div class="toolbar-divider"></div>
-        <button class="tool-btn" id="undo-btn" title="Undo (Ctrl+Z)">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M3 7v6h6"></path>
-            <path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"></path>
-          </svg>
-        </button>
-        <button class="tool-btn" id="clear-btn" title="Clear Canvas (Ctrl+D)">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path
-              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-            ></path>
-          </svg>
+          <span id="user-count" class="user-count">0</span>
         </button>
       </div>
     </div>
 
-    <div class="user-list-toggle">
-      <button id="users-toggle-btn" class="tool-btn">
-        <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-          <circle cx="9" cy="7" r="4"></circle>
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+    <div class="floating-toolbar">
+      <button class="tool-btn active" data-tool="brush" data-shortcut="b" title="Brush (B)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 19l7-7 3 3-7 7-3-3z"></path>
+          <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
+          <path d="M2 2l7.586 7.586"></path>
         </svg>
-        <span id="user-count" class="user-count">0</span>
       </button>
+      <button class="tool-btn" data-tool="eraser" data-shortcut="e" title="Eraser (E)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 20H7L3 16l8-8 9 9-1 3z"></path>
+          <path d="M16 16l-4-4"></path>
+        </svg>
+      </button>
+      <button class="tool-btn" data-tool="shape" data-shortcut="s" title="Shapes (S)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+        </svg>
+      </button>
+      <div class="toolbar-divider"></div>
+      <button class="tool-btn" id="color-btn" title="Color">
+        <div class="color-preview" style="background: #000000;"></div>
+      </button>
+      <div class="toolbar-divider"></div>
+      <button class="tool-btn" id="undo-btn" title="Undo (Ctrl+Z)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7v6h6"></path>
+          <path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"></path>
+        </svg>
+      </button>
+      <button class="tool-btn" id="redo-btn" title="Redo (Ctrl+Shift+Z)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 7v6h-6"></path>
+          <path d="M3 17a9 9 0 019-9 9 9 0 016 2.3l3 2.7"></path>
+        </svg>
+      </button>
+      <button class="tool-btn" id="clear-btn" title="Clear Canvas (Ctrl+D)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div id="color-picker" class="color-picker hidden">
+      <div class="color-picker-section">
+        <label>Common Colors</label>
+        <div class="color-grid">
+          <div class="color-option" data-color="#000000" style="background: #000000;"></div>
+          <div class="color-option" data-color="#FFFFFF" style="background: #FFFFFF; border: 1px solid #555;"></div>
+          <div class="color-option" data-color="#FF0000" style="background: #FF0000;"></div>
+          <div class="color-option" data-color="#00FF00" style="background: #00FF00;"></div>
+          <div class="color-option" data-color="#0000FF" style="background: #0000FF;"></div>
+          <div class="color-option" data-color="#FFFF00" style="background: #FFFF00;"></div>
+          <div class="color-option" data-color="#FF00FF" style="background: #FF00FF;"></div>
+          <div class="color-option" data-color="#00FFFF" style="background: #00FFFF;"></div>
+        </div>
+      </div>
+      <div class="color-picker-divider"></div>
+      <div class="color-picker-section">
+        <label>Custom Colors</label>
+        <div id="custom-colors" class="color-grid"></div>
+      </div>
     </div>
 
     <div id="user-list" class="user-list hidden">
@@ -246,23 +247,21 @@
       <div id="user-list-content"></div>
     </div>
 
-
+    <div class="metrics">
+      <div class="metric">FPS: <span id="fps">0</span></div>
+      <div class="metric">Ping: <span id="latency">0</span>ms</div>
+    </div>
 
     <div id="toast-container"></div>
 
     <div id="canvas-container">
-      <div class="metrics">
-        <div class="metric">FPS: <span id="fps">0</span></div>
-        <div class="metric">Ping: <span id="latency">0</span>ms</div>
-      </div>
-
-      <div id="canvas-container">
-        <canvas id="main-canvas"></canvas>
-        <div id="cursors-container"></div>
-      </div>
+      <canvas id="main-canvas"></canvas>
+      <div id="cursors-container"></div>
+      <div id="selection-box" class="selection-box hidden"></div>
     </div>
+  </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script type="module" src="main.js"></script>
-  </body>
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="main.js"></script>
+</body>
 </html>
