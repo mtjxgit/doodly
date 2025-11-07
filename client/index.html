@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-T">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Doodly</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <h1>Welcome to Doodly</h1>
-  <p>Local Canvas</p>
-
+  <p>Connecting to server...</p>
+  
   <div id="canvas-container">
     <canvas id="main-canvas"></canvas>
   </div>
 
-  <script src="main.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  
+  <script type="module" src="main.js"></script>
 </body>
 </html>
