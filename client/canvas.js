@@ -246,7 +246,8 @@ class DrawingCanvas {
     if (this.currentTool === 'brush' || this.currentTool === 'eraser') {
       operation = {
         type: 'stroke',
-        points: this.simplifyPath(this.points),
+        // --- CHANGE: Do not simplify. Send raw points. ---
+        points: this.points,
         color: this.currentTool === 'eraser' ? '#ffffff' : this.currentColor,
         width: this.currentTool === 'eraser' ? this.eraserWidth : this.brushWidth,
         id: this.currentOperationId,
@@ -265,48 +266,13 @@ class DrawingCanvas {
     this.currentOperationId = null;
   }
 
-  // Douglas-Peucker simplification
-  simplifyPath(points, tolerance = 2) {
-    if (points.length < 3) return points;
-
-    const sqTol = tolerance * tolerance;
-
-    const sqSegDist = (p, p1, p2) => {
-      let x = p1.x, y = p1.y;
-      let dx = p2.x - x, dy = p2.y - y;
-      if (dx !== 0 || dy !== 0) {
-        const t = ((p.x - x) * dx + (p.y - y) * dy) / (dx * dx + dy * dy);
-        if (t > 1) { x = p2.x; y = p2.y; }
-        else if (t > 0) { x += dx * t; y += dy * t; }
-      }
-      dx = p.x - x; dy = p.y - y;
-      return dx * dx + dy * dy;
-    };
-
-    const dp = (pts, first, last, sqTol, out) => {
-      let maxSq = sqTol;
-      let idx = 0;
-      for (let i = first + 1; i < last; i++) {
-        const sq = sqSegDist(pts[i], pts[first], pts[last]);
-        if (sq > maxSq) { idx = i; maxSq = sq; }
-      }
-      if (maxSq > sqTol) {
-        if (idx - first > 1) dp(pts, first, idx, sqTol, out);
-        out.push(pts[idx]);
-        if (last - idx > 1) dp(pts, idx, last, sqTol, out);
-      }
-    };
-
-    const last = points.length - 1;
-    const simplified = [points[0]];
-    dp(points, 0, last, sqTol, simplified);
-    simplified.push(points[last]);
-    return simplified;
-  }
+  // --- REMOVED simplifyPath FUNCTION ---
+  // It was the cause of the problem.
 
   /**
-   * --- NEW HELPER FUNCTION ---
+   * --- HELPER FUNCTION (Updated for sharp angles) ---
    * A single, reusable function to draw a smooth line.
+   * This uses a midpoint technique that respects sharp corners.
    */
   _drawSmoothLine(ctx, points, color, width, isEraser = false) {
     if (points.length < 2) return;
@@ -323,16 +289,20 @@ class DrawingCanvas {
     if (points.length === 2) {
       ctx.lineTo(points[1].x, points[1].y);
     } else {
-      // Draw quadratic curves
-      for (let i = 1; i < points.length - 1; i++) {
+      // Draw midpoints
+      let i = 1;
+      for (; i < points.length - 2; i++) {
         const xc = (points[i].x + points[i + 1].x) / 2;
         const yc = (points[i].y + points[i + 1].y) / 2;
         ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
       }
-      // Handle the last segment
-      const last = points[points.length - 1];
-      const secondLast = points[points.length - 2];
-      ctx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+      // Draw the last two points
+      ctx.quadraticCurveTo(
+        points[i].x,
+        points[i].y,
+        points[i + 1].x,
+        points[i + 1].y
+      );
     }
     ctx.stroke();
     ctx.restore();
