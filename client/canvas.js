@@ -304,16 +304,16 @@ class DrawingCanvas {
     return simplified;
   }
 
-  // Smooth stroke drawing on foreground
-  drawSmoothStroke(points, isEraser = false) {
+  /**
+   * --- NEW HELPER FUNCTION ---
+   * A single, reusable function to draw a smooth line.
+   */
+  _drawSmoothLine(ctx, points, color, width, isEraser = false) {
     if (points.length < 2) return;
 
-    // Redraw background first
-    this.composeLayers();
-
-    const ctx = this.ctx;
-    ctx.strokeStyle = isEraser ? '#ffffff' : this.currentColor;
-    ctx.lineWidth = isEraser ? this.eraserWidth : this.brushWidth;
+    ctx.save();
+    ctx.strokeStyle = isEraser ? '#ffffff' : color;
+    ctx.lineWidth = width;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -323,16 +323,31 @@ class DrawingCanvas {
     if (points.length === 2) {
       ctx.lineTo(points[1].x, points[1].y);
     } else {
+      // Draw quadratic curves
       for (let i = 1; i < points.length - 1; i++) {
         const xc = (points[i].x + points[i + 1].x) / 2;
         const yc = (points[i].y + points[i + 1].y) / 2;
         ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
       }
+      // Handle the last segment
       const last = points[points.length - 1];
       const secondLast = points[points.length - 2];
       ctx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
     }
     ctx.stroke();
+    ctx.restore();
+  }
+
+  // Smooth stroke drawing on foreground (UPDATED)
+  drawSmoothStroke(points, isEraser = false) {
+    // Redraw background first
+    this.composeLayers();
+
+    const color = isEraser ? '#ffffff' : this.currentColor;
+    const width = isEraser ? this.eraserWidth : this.brushWidth;
+
+    // Use the new helper on the main context
+    this._drawSmoothLine(this.ctx, points, color, width, isEraser);
   }
 
   // Remote draw stream with batched points
@@ -367,22 +382,16 @@ class DrawingCanvas {
     });
   }
 
+  // UPDATED
   drawRemotePreviewStrokes() {
     const ctx = this.ctx;
     for (const preview of this.remoteStrokePreviews.values()) {
       if (preview.points.length < 2) continue;
 
-      ctx.strokeStyle = preview.tool === 'eraser' ? '#ffffff' : preview.color;
-      ctx.lineWidth = preview.width;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-
-      ctx.beginPath();
-      ctx.moveTo(preview.points[0].x, preview.points[0].y);
-      for (let i = 1; i < preview.points.length; i++) {
-        ctx.lineTo(preview.points[i].x, preview.points[i].y);
-      }
-      ctx.stroke();
+      const isEraser = preview.tool === 'eraser';
+      
+      // Use the new helper
+      this._drawSmoothLine(ctx, preview.points, preview.color, preview.width, isEraser);
     }
   }
 
@@ -451,23 +460,23 @@ class DrawingCanvas {
     ctx.restore();
   }
 
+  // UPDATED
   commitOperationToBackground(operation) {
     const ctx = this.backgroundCtx;
 
     if (operation.type === 'stroke') {
       if (!operation.points || operation.points.length === 0) return;
-      ctx.save();
-      ctx.strokeStyle = operation.color;
-      ctx.lineWidth = operation.width;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      ctx.moveTo(operation.points[0].x, operation.points[0].y);
-      for (let i = 1; i < operation.points.length; i++) {
-        ctx.lineTo(operation.points[i].x, operation.points[i].y);
-      }
-      ctx.stroke();
-      ctx.restore();
+
+      const isEraser = operation.color === '#ffffff';
+      
+      // Use the new helper on the background context
+      this._drawSmoothLine(
+        ctx, 
+        operation.points, 
+        operation.color, 
+        operation.width, 
+        isEraser
+      );
       return;
     }
 
@@ -495,6 +504,10 @@ class DrawingCanvas {
       // Clean corresponding previews
       if (operation.type === 'stroke' && operation.operationId) {
         this.remoteStrokePreviews.delete(operation.operationId);
+      }
+      // MODIFIED: Check for operation.id, not operation.operationId
+      if (operation.type === 'stroke') {
+        this.remoteStrokePreviews.delete(operation.id);
       }
       if (operation.type === 'shape' && operation.userId) {
         this.remoteShapePreviews.delete(operation.userId);
