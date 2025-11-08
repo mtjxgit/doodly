@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <!-- VITAL: Added viewport tag for mobile responsiveness -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Doodly - Real-Time Canvas</title>
+  <title>Doodly</title>
   <link href='https://cdn.boxicons.com/3.0.3/fonts/basic/boxicons.min.css' rel='stylesheet'>
   <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,14 +25,16 @@
       <div class="form-group">
         <label>Choose Your Color</label>
         <div class="color-grid" id="user-color-grid">
+          <div class="color-option" data-color="#7B28FF" style="background: #7B28FF;"></div>
+          <div class="color-option" data-color="#F45B93" style="background: #f45b5b;"></div>
+          <div class="color-option" data-color="#F8B62D" style="background: #F8B62D;"></div>
+          <div class="color-option" data-color="#4ECDC4" style="background: #53ded5;"></div>
           <div class="color-option" data-color="#FF6B6B" style="background: #FF6B6B;"></div>
-          <div class="color-option" data-color="#4ECDC4" style="background: #4ECDC4;"></div>
-          <div class="color-option" data-color="#45B7D1" style="background: #45B7D1;"></div>
-          <div class="color-option" data-color="#FFA07A" style="background: #FFA07A;"></div>
-          <div class="color-option" data-color="#98D8C8" style="background: #98D8C8;"></div>
-          <div class="color-option" data-color="#F7DC6F" style="background: #F7DC6F;"></div>
-          <div class="color-option" data-color="#BB8FCE" style="background: #BB8FCE;"></div>
-          <div class="color-option" data-color="#85C1E2" style="background: #85C1E2;"></div>
+          <div class="color-option" data-color="#F7DC6F" style="background: #cbff46;"></div>
+          <div class="color-option" data-color="#85C1E2" style="background: #5346ff;"></div>
+          <div class="color-option" data-color="#3A2E7A" style="background: #8894d8;"></div>
+          <div class="color-option" data-color="#7B28FF" style="background: #2dd03b;"></div>
+          <div class="color-option" data-color="#F45B93" style="background: #e58d30;"></div>
         </div>
       </div>
       <button id="login-btn" class="btn-primary">Continue</button>
@@ -67,18 +69,9 @@
       </div>
 
       <div class="sidebar-content">
+<div>
         <div class="sidebar-section">
           <h3>Room Details</h3>
-          <!-- <div class="room-info">
-            <div class="info-item">
-              <span class="info-label">Room:</span>
-              <span id="current-room-name">-</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Users:</span>
-              <span id="current-user-count">0</span>
-            </div>
-          </div> -->
           <div class="room-current" data-room="${this.escapeHtml(room.name)}">
             <span id="current-room-name">-</span>
             <span id="current-user-count" class="room-user-count">0</span>
@@ -92,7 +85,8 @@
             <p class="empty-state">No other rooms available</p>
           </div>
         </div>
-
+</div>
+<div>
         <div class="sidebar-section">
           <h3>Help</h3>
           <button id="shortcuts-btn" class="btn-link">
@@ -101,7 +95,7 @@
           </button>
         </div>
       </div>
-
+</div>
       <div class="sidebar-footer">
         <div class="user-info">
           <div class="user-avatar" id="sidebar-user-avatar"></div>
