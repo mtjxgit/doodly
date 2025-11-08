@@ -177,8 +177,7 @@ class App {
       const val = this.canvas.brushWidth;
       contextContent.innerHTML = `
         <div class="context-control">
-          <h2>Brush</h2>
-          <label>Width</label>
+          <label>Brush Width</label>
           <input type="range" id="brush-width" min="1" max="50" value="${val}">
           <span id="brush-width-value">${val}px</span>
         </div>
@@ -195,8 +194,7 @@ class App {
       const val = this.canvas.eraserWidth;
       contextContent.innerHTML = `
         <div class="context-control">
-          <h2>Eraser</h2>
-          <label>Width</label>
+          <label>Eraser Width</label>
           <input type="range" id="eraser-width" min="5" max="100" value="${val}">
           <span id="eraser-width-value">${val}px</span>
         </div>
@@ -213,18 +211,12 @@ class App {
       const val = this.canvas.shapeWidth;
       contextContent.innerHTML = `
         <div class="context-control">
-          <h2>Shape</h2>
+          <label>Shape</label>
           <div class="shape-options">
-  <button class="shape-btn active" data-shape="rectangle">
-    <i class='bxrd bx-square'></i>
-  </button>
-  <button class="shape-btn" data-shape="circle">
-    <i class='bxrd bx-circle'></i>
-  </button>
-  <button class="shape-btn" data-shape="triangle">
-    <i class='bxrd bx-triangle'></i>
-  </button>
-</div>
+            <button class="shape-btn active" data-shape="rectangle">▭</button>
+            <button class="shape-btn" data-shape="circle">●</button>
+            <button class="shape-btn" data-shape="triangle">▲</button>
+          </div>
         </div>
         <div class="context-control">
           <label>Shape Width</label>
