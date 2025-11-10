@@ -4,64 +4,14 @@ This document details the technical architecture, data flow, and key decisions m
 
 ---
 
-## 1. Data Flow Diagrams
+## Data Flow Diagrams
 
-### Flow A: User Joins a Room
+![10F82520-866D-48D3-81FE-7A89F80A71B2_1_105_c](https://github.com/user-attachments/assets/9f82d2d0-c871-4400-9068-808051da2fc0)
 
-1.  **Client:** Enters name/color, then enters room name ("Room A").
-2.  **Client (`websocket.js`):** Calls `socket.connect()` with `roomName`, `username`, `color`, and `sessionId`.
-3.  **Server (`rooms.js`):** `handleConnection` receives the connection.
-    * It checks the `userSessions` map for the `sessionId`.
-    * **[Room Switch Fix]:** If the user is found in "Room B", it immediately fires a `user:left` and `users:load` to "Room B" to remove the "ghost" user.
-4.  **Server (`rooms.js`):** `joinRoom` is called.
-    * If "Room A" doesn't exist in the `rooms` map, it's created, and a new `DrawingState` is instantiated.
-    * **[Persistence]:** `drawing-state.js` constructor reads `"./room-data/Room A.json"` from disk to load history.
-5.  **Server (`rooms.js`):**
-    * Emits `server:history:load` *to the new user* with the full drawing history.
-    * Emits `server:rooms:list` *to the new user* with the cached room list.
-    * Emits `user:joined` *to everyone else* in "Room A".
-    * Emits `users:load` *to everyone* in "Room A" with the new user list.
-6.  **Client (`main.js`):**
-    * Receives `server:history:load`, calls `canvas.loadHistoryFromServer()`.
-    * Receives `user:joined`, shows a toast.
-    * Receives `users:load`, updates the user list UI.
-
-### Flow B: User Draws a Stroke
-
-1.  **Client (`canvas.js`):** `onPointerDown` sets `isDrawing = true`.
-2.  **Client (`canvas.js`):** `onPointerMove` captures points.
-    * **[Client Prediction]:** It draws the stroke *locally* on the top-layer canvas for an instant feel.
-    * **[Batching]:** Points are added to `strokeBatchBuffer`.
-    * When the buffer is full, `onDrawStream` fires.
-    * **[Throttling]:** `emitCursorCoalesced` uses `requestAnimationFrame` to send `client:cursor:move` events at a max of ~20fps.
-3.  **Client (`websocket.js`):** Emits `client:draw:stream` and `client:cursor:move` (volatile).
-4.  **Server (`rooms.js`):** Receives events.
-    * `client:draw:stream` -> Broadcasts `server:draw:stream` to all *other* clients.
-    * `client:cursor:move` -> Broadcasts `server:cursor:move` to all *other* clients.
-5.  **Other Clients (`canvas.js`):**
-    * `handleRemoteDrawStream` adds points to `remoteStrokePreviews` map.
-    * `requestPreviewRedraw` is called (using `rAF`) to render all remote previews.
-6.  **Client (`canvas.js`):** `onPointerUp` (mouse up).
-    * **[Optimization]:** Calls `simplifyPath()` to reduce the number of points.
-    * Emits the *final* `client:operation:add` with the complete, simplified stroke.
-7.  **Server (`rooms.js`):** Receives `client:operation:add`.
-    * Attaches a server timestamp and `userId`.
-    * Calls `room.state.addOperation()`.
-8.  **Server (`drawing-state.js`):** `addOperation()`
-    * **[Conflict Resolution]:** Calls `_insertOperation()` to insert the new operation into the `drawingHistory` array in its correct chronological (timestamp-based) position.
-    * Clears the `redoStack`.
-    * Calls `debouncedSave()` to save to disk.
-9.  **Server (`rooms.js`):** Broadcasts `server:operation:add` to *all* clients (including the sender).
-10. **All Clients (`canvas.js`):**
-    * `addOperationToHistory()` is called.
-    * The `remoteStrokePreviews` for this operation are cleared.
-    * The operation is added to the local `history`.
-    * `redrawBackground()` commits the new operation to the persistent `backgroundCanvas`.
-    * `composeLayers()` copies the background to the main canvas, clearing all previews.
 
 ---
 
-## 2. WebSocket Protocol
+## WebSocket Protocol
 
 | Direction | Event | Data | Description |
 | :--- | :--- | :--- | :--- |
@@ -91,7 +41,7 @@ This document details the technical architecture, data flow, and key decisions m
 
 ---
 
-## 3. Undo/Redo Strategy: Server-Authoritative
+## Undo/Redo Strategy: Server-Authoritative
 
 The global undo/redo is handled entirely by the server to ensure perfect consistency.
 
@@ -116,31 +66,39 @@ This strategy is simple and robust. It makes conflict resolution trivial: **ther
 
 ---
 
-## 4. Performance & Optimization Decisions
+## Performance Decisions
 
-High performance (especially with many users) was a primary goal.
+Several key optimizations were made across the client and server to ensure low latency and a smooth user experience.
 
-### Client-Side
-* **Dual-Layer Canvas (`canvas.js`):** The canvas is split into two layers:
-    1.  `backgroundCanvas`: A persistent, off-screen canvas that holds the *committed* drawing history.
-    2.  `main-canvas`: The visible canvas.
-    * **Benefit:** When drawing previews (local or remote), we only need to copy the `backgroundCanvas` to the `main-canvas` and draw the previews on top. This avoids re-drawing the entire history (which could be 10,000+ operations) on every single mouse movement.
-* **Client-Side Prediction (`canvas.js`):** The user's *own* drawing is rendered locally immediately in `onPointerMove`. This makes the app feel instant, even with high network latency. This local preview is cleared when the server broadcasts the committed operation back to the client.
-* **Stroke Simplification (`canvas.js`):** The `simplifyPath()` (Douglas-Peucker) algorithm is used on `onPointerUp` to reduce the number of points in a stroke before sending it to the server, saving network bandwidth and storage.
-* **Event Batching & Throttling (`canvas.js`):**
-    * **Strokes:** `strokeBatchBuffer` groups ~3 points together into a single `client:draw:stream` event to reduce network spam.
-    * **Cursors:** `emitCursorCoalesced` uses `requestAnimationFrame` to ensure `client:cursor:move` is only sent once per frame, preventing floods of 60+ events/sec.
+### Client-Side Rendering (`canvas.js`)
+* **Dual-Layer Canvas:** The client uses two canvases: a `backgroundCanvas` for all committed operations and a main (foreground) canvas for real-time previews. This avoids redrawing the entire history on every mouse move. The foreground is simply cleared and composited with the background (`composeLayers`).
+* **Preview Coalescing:** All remote preview drawing (for both strokes and shapes) is batched into a single `requestAnimationFrame` (`requestPreviewRedraw`). This prevents multiple, janky redraws in a single frame if many preview packets arrive at once.
+* **Smooth Stroke Drawing:** The drawing functions use `quadraticCurveTo` to render smooth midpoints for strokes, both locally and for remote previews (`_drawSmoothLine`).
 
-### Server-Side
-* **Efficient State Insertion (`drawing-state.js`):** When adding or redoing an operation, we do *not* call `sort()` on the entire history. This would be `O(N log N)` and very slow. Instead, `_insertOperation` finds the correct chronological spot and uses `splice()` to insert it. This is an `O(N)` operation, which is significantly faster.
-* **Room List Caching (`rooms.js`):** `getRoomList()` requires reading the filesystem, which is a slow, blocking I/O operation. The result is cached for 5 seconds to prevent every `client:rooms:request` from hitting the disk.
-* **Broadcast Debouncing (`rooms.js`):** When users join/leave, the global room list must be updated for all users on the server. `debouncedBroadcastRoomList` ensures this broadcast only happens (at most) once every 2 seconds, preventing a "network storm" if 100 users join at once.
-* **Session Management (`rooms.js`):** The `userSessions` map (using the client's `sessionId`) is the key to managing reconnections and fixing the "ghost user" bug that occurs when a user switches rooms.
+### Network (`rooms.js`, `websocket.js`, `canvas.js`)
+* **Volatile Messages:** Non-essential, high-frequency updates like cursor movements (`client:cursor:move`) and streaming draws (`client:draw:stream`) are sent using `socket.volatile`. This allows the network to drop these packets if busy, prioritizing critical messages like committed operations.
+* **Stroke Batching:** Instead of sending a message for every single point drawn, the client batches points into a `strokeBatchBuffer` (size 3) and sends them in chunks (`onDrawStream`). This drastically reduces the number of WebSocket messages.
+* **Coalesced Cursor Emits:** The client uses `requestAnimationFrame` (`emitCursorCoalesced`) to send its cursor position, ensuring it sends *at most* one update per frame and no more than once every 50ms.
+* **Selective Broadcasting:** The server intelligently avoids sending data to the original sender when unnecessary. For example, `server:shape:preview_clear` is sent with `socket.to(roomName)`, excluding the sender who already cleared their own preview.
+* **Debounced Room List Broadcasts:** The global room list is only broadcast to *all clients on all sockets* at most once every 2 seconds (`debouncedBroadcastRoomList`). This prevents network spam when many users join or leave rooms quickly.
+
+### Server-Side State (`drawing-state.js`, `rooms.js`)
+* **O(N) Insertion Sort:** When adding an operation (or redoing one), `_insertOperation` is used to splice it into the `drawingHistory` at the correct timestamp-sorted position. This is an O(N) operation, which is far more efficient than adding and then re-sorting the entire array (O(N log N)) on every write.
+* **Debounced Disk Saves:** The server debounces `saveToDisk` calls by 1 second. This means if 10 operations happen in one second, the server only writes to the file *once*, not 10 times.
+* **Atomic Disk Writes:** To prevent data corruption, the server writes the new state to a `.tmp` file first. Only after the write is successful does it rename the `.tmp` file to the final `.json` file.
+* **Room List Caching:** The server caches the list of all rooms for 5 seconds (`getRoomList`) to avoid expensive, synchronous file system reads (`getAllRooms`) every time a user requests the list.
 
 ---
 
-## 5. Conflict Resolution
+## Conflict Resolution
 
-* **Simultaneous Drawing:** Resolved by **server timestamping**. When `client:operation:add` is received, the server assigns a definitive `timestamp`. The `_insertOperation` function ensures all operations are added to the state in this timestamp order. Even if User A's stroke (10:00:01) arrives *after* User B's stroke (10:00:02) due to network lag, the server will correctly insert A *before* B.
-* **Simultaneous Undo:** Resolved by the **server-authoritative stack**. If two users click "Undo" at the same time, the server will receive two `client:undo` events. It will process them sequentially, popping two items from the `drawingHistory` and sending two `server:history:load` broadcasts. The final state will be consistent for all users.
-* **Connection/Reconnection:** Resolved by **session management**. The `handleConnection` logic's primary job is to check an incoming `sessionId` against the `userSessions` map. This allows it to distinguish a new user from a reconnecting user or a user who is switching rooms, and to correctly clean up old sockets.
+The system's conflict resolution strategy is based on **client-generated timestamps** and a **server-authoritative, globally-ordered timeline**. There is no complex merging (Operational Transformation).
+
+1.  **Client Timestamp:** When a user finishes a drawing (`onPointerUp`), the `canvas.js` client creates the final operation object and assigns it a `timestamp` using `Date.now()`.
+2.  **Server Receives:** The operation is sent via `client:operation:add` to `rooms.js`. The server double-checks for a timestamp and adds one if it's missing (as a fallback).
+3.  **Ordered Insertion:** The server passes the operation to `drawing-state.js`, which uses the `_insertOperation` method. This method iterates through the `drawingHistory` to find the correct chronological position for the new operation based on its timestamp and splices it in.
+4.  **Global Broadcast:** The server broadcasts this *final, timestamped* operation to all clients via `server:operation:add`.
+5.  **Client Convergence:** All clients (including the original sender) receive this operation via `addOperationToHistory`. The client's local `this.history` array is also sorted by timestamp (`this.history.sort(...)`) to ensure consistency.
+6.  **Full Redraw:** Critically, the client then calls `redrawBackground()`. This function **clears the background canvas and redraws every single operation** from the newly-sorted history, from oldest to newest.
+
+**Result:** If two users draw simultaneously, both operations are timestamped. The server inserts them into the global history based on whichever timestamp is *earlier*. Because all clients receive these operations and redraw their entire canvas based on the same, sorted history, their canvases are **guaranteed to converge to the exact same state**, even if the packets arrived in a different order. The "conflict" is resolved by "Last Write Wins," but "Last Write" is determined by the client's timestamp, not the server's receive time.
