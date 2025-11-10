@@ -1,72 +1,124 @@
-# Doodly - A Real-Time Collaborative Canvas
+# Doodly - Real-Time Collaborative Whiteboard
 
-A multi-user, real-time whiteboarding application built with Node.js, Express, Socket.IO, and vanilla JavaScript. This project focuses on high-performance canvas rendering and robust state synchronization.
+Doodly is a high-performance, real-time collaborative drawing application built with Node.js, Express, and Socket.io. It supports multiple rooms, persistent drawing history, various tools (brush, eraser, shapes), and is optimized for low-latency interactions.
 
-**Demo Link:** `http://doodly-lovh.onrender.com`
-**Repo Link:** `https://github.com/mtjxgit/doodly/`
-
----
+This project features a robust backend handling session management and state persistence, and an optimized dual-canvas frontend for a smooth drawing experience.
 
 ## 🚀 Features
 
-### Core Requirements
-* **Drawing Tools:** A complete toolset including a Brush, Eraser, and Shape tool (Rectangle, Circle, Triangle).
-* **Tool Adjustments:** Modify stroke width and color for all tools.
-* **Real-time Sync:** See other users' drawings *as they draw*, not just when they finish a stroke.
-* **Live Cursors:** See the cursor positions of all other users in the room in real-time.
-* **User Management:** View a list of all online users, see join/leave notifications, and have a unique color assigned at login.
-* **Global Undo/Redo:** A server-authoritative undo/redo stack that is perfectly synchronized for all users.
+* **Real-Time Collaboration:** All drawings are broadcast instantly to other users in the same room.
+* **Multiple Rooms:** Create or join any number of isolated drawing rooms.
+* **Persistent State:** Drawing history is saved to the server's file system, surviving server restarts.
+* **Session Management:** Users can disconnect and reconnect (e.g., on a network refresh) and will be restored to their room.
+* **Rich Tools:**
+    * Brush (variable width)
+    * Eraser (variable width)
+    * Shapes (Rectangle, Circle, Triangle)
+* **Live Cursors:** See the cursors of other users moving in real-time.
+* **Performance Optimizations:**
+    * **Client:** Dual-canvas rendering (one for "committed" history, one for "preview" strokes) and `requestAnimationFrame` coalescing for smooth drawing.
+    * **Server:** Efficient O(N) operation insertion, debounced room list broadcasts, and atomic writes for state persistence.
 
-### Bonus Features Implemented
-* **Room System:** Users can create and join isolated rooms.
-* **Drawing Persistence:** Canvas state is saved to the server's disk and reloaded when a new user joins a room.
-* **Mobile Touch Support:** The application is fully responsive and supports touch/pen events for drawing on mobile devices.
-* **Performance Metrics:** The UI displays a real-time FPS counter and network latency (Ping) monitor.
-* **Shape Tool:** A bonus drawing tool for creating perfect shapes.
+## 💻 Technologies Used
+
+* **Backend:** Node.js, Express, Socket.io
+* **Frontend:** Vanilla JavaScript (ES6+), Socket.io Client, HTML5 Canvas
+* **Persistence:** Local File System (JSON)
+
+## 📁 Project Structure
+
+The project is structured into a `client` and `server` directory.
+```
+/
+├── client/
+│   ├── index.html           # Main application page
+│   ├── style.css            # Styles 
+│   ├── main.js              # Main frontend controller, UI, and event wiring
+│   ├── canvas.js            # Core drawing logic (dual-canvas, tools, rendering)
+│   ├── websocket.js         # Client-side Socket.io manager (reconnection, etc.)
+│   └── tools/
+│       └── shape-tool.js    # Logic for the shape drawing tool
+├── server/
+│   ├── server.js            # Main server entry (Express + Socket.io setup)
+│   ├── rooms.js             # RoomManager class (handles users, sessions, events)
+│   └── drawing-state.js     # DrawingState class (handles room persistence to disk)
+├── room-data/
+│   └── (Generated room data .json files)
+└── package.json             # Project dependencie
+```
 
 ---
 
-## 🔧 Setup & Installation
+## 🛠️ Setup Instructions
+
+### Prerequisites
+
+* [Node.js](https://nodejs.org/) (v14.x or later)
+* npm
+
+### Installation & Running
 
 1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/mtjxgit/doodly/
-    cd collaborative-canvas
+    ```sh
+    git clone [https://github.com/your-repo/doodly.git](https://github.com/your-repo/doodly.git)
+    cd doodly
     ```
 
-2.  **Install server dependencies:**
-    ```bash
-    npm install
+2.  **Install dependencies:**
+    *Note: A `package.json` is assumed. You may need to create one.*
+    ```sh
+    npm install express socket.io
     ```
-    (Note: The `client` directory has no build step and is served statically).
 
 3.  **Run the server:**
-    ```bash
-    npm start
+    The server is designed to be run from the `server/` directory.
+    ```sh
+    node server/server.js
     ```
-    The server will be running at `http://localhost:3000`.
+    You should see a confirmation in your terminal:
+    ```
+    🚀 Server running on http://localhost:3000
+    ```
+
+4.  **Access the application:**
+    Open your web browser and navigate to **`http://localhost:3000`**.
 
 ---
 
-## 🧪 How to Test
+## 👥 How to Test with Multiple Users
 
-1.  Open `http://localhost:3000` in a browser window.
-2.  Enter a username and pick a color.
-3.  Enter a room name (e.g., "test-room").
-4.  Open a *second* browser window (or a private/incognito window).
-5.  Repeat the process with a *different* username and join the *same* room ("test-room").
-6.  Draw in one window and observe the real-time drawing, cursor, and user list updates in the other.
-7.  Test the global undo/redo by having one user draw and the *other* user press the undo button.
+To test the real-time collaboration features, you need to simulate multiple different users.
+
+The application uses **`sessionStorage`** to manage session IDs. Because of this, opening new *tabs* in the same browser will likely share the same session and will not work for testing.
+
+**The correct way to test:**
+
+* **Option 1 (Recommended):** Use Incognito or Private windows.
+    1.  Open `http://localhost:3000` in a normal browser window.
+    2.  Open `http://localhost:3000` in a new **Incognito** or **Private** window.
+* **Option 2:** Use different browsers (e.g., Chrome and Firefox) and open `http://localhost:3000` in each.
+
+You can then log in with different usernames and colors. Ensure you enter the **exact same room name** for both users to see each other and collaborate.
 
 ---
 
-## ⏳ Time Spent
+## ⚠️ Known Limitations & Bugs
 
-* **Initial Development:** ~10 hours
-* **Optimization & Bug Fixing:** ~3 hours
+* **Client-Side Redraw Inefficiency:** The client-side `canvas.js` (in `addOperationToHistory`) re-sorts and re-draws the *entire* canvas history from scratch every time a single new operation is received from the server. This is highly inefficient and will cause significant performance lag and flashing in rooms with a large drawing history. The server is optimized for this (O(N) insertion), but the client is not.
+* **Global Undo/Redo:** The undo/redo functionality is **global**, not per-user. When a user clicks "Undo," it removes the last-drawn operation on the canvas, regardless of who drew it. This is a design choice but may be unintuitive for users expecting a local (per-user) undo.
+* **File-Based Persistence:** The server saves room state to JSON files in the `room-data/` folder. This is not suitable for a large-scale production environment as it:
+    * Does not scale horizontally (i.e., you cannot run multiple server instances).
+    * Can be slow with very large history files.
+    * Relies on the server having disk write permissions.
+* **No Authentication:** Usernames are not unique or password-protected. Anyone can join with any name.
 
-## ⚠️ Known Limitations
+---
 
-* **No Authentication:** The app is session-based but has no formal login system.
-* **No Stroke Eraser:** The eraser tool is a "pixel" eraser (drawing with white) rather than an object-based stroke eraser.
-  
+## 🕒 Time Spent
+
+Approximately **25-30 hours** were spent on designing, building, and optimizing this project.
+
+* **Initial Setup (Backend + Frontend):** 6-8 hours
+* **Core Features (Drawing, Tools, Persistence):** 8-10 hours
+* **Optimizations & Refactoring:** 8-10 hours
+* **Session Management & UI Polish:** 3-5 hours
