@@ -60,7 +60,7 @@ The project is structured into a `client` and `server` directory.
 
 1.  **Clone the repository:**
     ```sh
-    git clone [https://github.com/your-repo/doodly.git](https://github.com/your-repo/doodly.git)
+    git clone https://github.com/mtjxgit/doodly.git
     cd doodly
     ```
 
